@@ -9,17 +9,13 @@
 		<link rel="icon" href="/favicon.ico" />
 		<meta name="viewport" content="width=device-width" />
 		<meta name="generator" content={Astro.generator} />
-		<meta
-			name="description"
-			content="Dark Beer Mile — run a mile, drink dark beer every 400 meters."
-		/>
+		<meta name="description" content="Dark Beer Mile" />
 		<title>Dark Beer Mile</title>
 	</head>
 	<body>
 		<main class="hero">
 			<h1>Dark Beer Mile</h1>
-			<p class="tagline">Run a mile. Drink dark beer. Repeat.</p>
-			<p class="coming-soon">Coming soon — site launching shortly.</p>
+			<img src="/logo.png" alt="Dark Beer Mile logo" class="logo" width="320" height="320" />
 		</main>
 	</body>
 </html>
@@ -34,7 +30,7 @@
 	html,
 	body {
 		height: 100%;
-		background: #0a0a0a;
+		background: #000;
 		color: #111;
 	}
 
@@ -50,34 +46,22 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		gap: 1.25rem;
+		gap: 2rem;
 		padding: 2rem;
 		text-align: center;
 	}
 
 	h1 {
 		color: #111;
-		font-size: clamp(1.75rem, 5vw, 3rem);
+		font-size: clamp(1.5rem, 4vw, 2.5rem);
 		font-weight: 300;
-		letter-spacing: 0.35em;
+		letter-spacing: 0.4em;
 		text-transform: uppercase;
-		text-shadow: 0 0 1px rgba(255, 255, 255, 0.06);
+		text-shadow: 0 0 1px rgba(255, 255, 255, 0.05);
 	}
 
-	.tagline {
-		color: #1a1a1a;
-		font-size: clamp(0.95rem, 2.5vw, 1.15rem);
-		font-weight: 400;
-		letter-spacing: 0.08em;
-		text-shadow: 0 0 1px rgba(255, 255, 255, 0.04);
-	}
-
-	.coming-soon {
-		margin-top: 0.5rem;
-		color: #222;
-		font-size: 0.85rem;
-		font-weight: 300;
-		letter-spacing: 0.2em;
-		text-transform: uppercase;
+	.logo {
+		width: min(320px, 70vw);
+		height: auto;
 	}
 </style>
