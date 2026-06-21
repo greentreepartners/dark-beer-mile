@@ -1,0 +1,372 @@
+---
+/**
+ * CinematicHero — full-viewport landing hero with sequenced tagline reveal.
+ * Single hero-line element; client script sequences fade out → gap → text swap → fade in.
+ */
+import FoamLineRunner from './FoamLineRunner.astro';
+import GuinnessSurge from './GuinnessSurge.astro';
+
+const IN_MS = 1100;
+const OUT_MS = 600;
+/** ms with no hero line visible between line N out and line N+1 in */
+const LINE_GAP_MS = 300;
+const INITIAL_DELAY_MS = 400;
+
+const lineDefs = [
+	{ parts: [{ text: 'One mile' }], hold: 650 },
+	{ parts: [{ text: 'One night' }], hold: 650 },
+	{
+		parts: [{ text: 'Poured in ' }, { text: 'darkness', accent: true }],
+		hold: 800,
+	},
+	{
+		parts: [{ text: 'One head will ' }, { text: 'rise', accent: true }],
+		hold: 1100,
+	},
+] as const;
+---
+
+<section class="cinematic-hero" aria-label="Hero">
+	<div class="hero-surface" aria-hidden="true">
+		<GuinnessSurge />
+	</div>
+
+	<FoamLineRunner />
+
+	<div class="hero-stage">
+		<div class="hero-lines" aria-live="polite">
+			<p class="hero-line" id="hero-line"></p>
+			<p class="hero-line hero-title" id="hero-title">Dark Beer Mile</p>
+		</div>
+	</div>
+
+	<div class="hero-lockup">
+		<p class="hero-lockup__tagline">
+			One mile | One night | Poured in darkness | One head will rise
+		</p>
+	</div>
+</section>
+
+<style>
+	.cinematic-hero {
+		--stout-core: #0a0402;
+		--stout-body: #1a0601;
+		--rust-dark: #3a1208;
+		--amber: #8b3a10;
+		--foam: #f2dea3;
+		/** Foam/stout boundary — matches GuinnessSurge shader foamFloor (~29% from top). */
+		--foam-line-y: 29%;
+		--amber-bright: #d4a060;
+		--foam-subtle: rgba(242, 222, 163, 0.8);
+		--foam-border: rgba(242, 222, 163, 0.15);
+		--hero-in-ms: 1100ms;
+		--hero-out-ms: 600ms;
+		--lockup-duration: 1600ms;
+
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+		min-height: 100vh;
+		overflow: hidden;
+		background: linear-gradient(180deg, var(--stout-core) 0%, var(--stout-body) 100%);
+		color: var(--foam);
+	}
+
+	.hero-surface {
+		position: absolute;
+		inset: 0;
+		z-index: 0;
+		pointer-events: none;
+		opacity: 0.6;
+		transform: none;
+	}
+
+	.hero-stage {
+		position: relative;
+		z-index: 1;
+		display: grid;
+		place-items: center;
+		width: 100%;
+		min-height: inherit;
+		padding: 2rem;
+	}
+
+	.hero-lines {
+		position: relative;
+		width: min(100%, 64rem);
+		height: clamp(2.2rem, 8vw, 5.5rem);
+	}
+
+	.hero-line {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin: 0;
+		font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+		font-size: clamp(2.2rem, 8vw, 5.5rem);
+		font-weight: 900;
+		line-height: 1.05;
+		letter-spacing: 0.02em;
+		text-transform: uppercase;
+		text-align: center;
+		color: var(--foam);
+		white-space: nowrap;
+		opacity: 0;
+		visibility: hidden;
+		filter: blur(6px);
+		transform: scale(0.92);
+	}
+
+	.hero-line.is-visible {
+		opacity: 1;
+		visibility: visible;
+		filter: blur(0);
+		transform: scale(1);
+	}
+
+	.hero-line__accent {
+		color: var(--amber-bright);
+	}
+
+	.hero-title {
+		font-size: clamp(3.3rem, 12vw, 8.25rem);
+	}
+
+	.hero-lockup {
+		position: absolute;
+		left: 50%;
+		bottom: 9%;
+		z-index: 2;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		width: min(92vw, 42rem);
+		transform: translateX(-50%);
+		opacity: 0;
+		text-align: center;
+	}
+
+	.cinematic-hero.is-complete .hero-lockup {
+		animation: hero-lockup-in var(--lockup-duration) ease forwards;
+	}
+
+	.hero-lockup__tagline {
+		margin: 0;
+		padding: 0.55rem 1.1rem;
+		font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+		font-size: clamp(0.62rem, 1.9vw, 0.85rem);
+		font-weight: 600;
+		line-height: 1.4;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		white-space: nowrap;
+		color: var(--amber-bright);
+	}
+
+	@keyframes hero-lockup-in {
+		from {
+			opacity: 0;
+		}
+
+		to {
+			opacity: 1;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.hero-surface {
+			opacity: 0.6;
+			transform: none;
+		}
+
+		.hero-line {
+			opacity: 0;
+			visibility: hidden;
+			filter: none;
+			transform: none;
+		}
+
+		.cinematic-hero.is-reduced-motion .hero-line {
+			opacity: 0;
+			visibility: hidden;
+		}
+
+		.cinematic-hero.is-reduced-motion .hero-title {
+			opacity: 1;
+			visibility: visible;
+			filter: none;
+			transform: none;
+		}
+
+		.hero-lockup {
+			opacity: 1;
+		}
+
+		.cinematic-hero.is-complete .hero-lockup {
+			animation: none;
+		}
+	}
+</style>
+
+<script
+	define:vars={{
+		lineDefs,
+		IN_MS,
+		OUT_MS,
+		LINE_GAP_MS,
+		INITIAL_DELAY_MS,
+	}}
+>
+	function partsToHtml(parts) {
+		const inner = parts
+			.map((part) =>
+				part.accent
+					? `<span class="hero-line__accent">${part.text}</span>`
+					: part.text,
+			)
+			.join('');
+		// Single wrapper so flex layout does not strip trailing spaces before accents.
+		return `<span class="hero-line__text">${inner}</span>`;
+	}
+
+	function wait(ms, signal) {
+		return new Promise((resolve, reject) => {
+			if (signal?.aborted) {
+				reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+				return;
+			}
+			const id = setTimeout(resolve, ms);
+			signal?.addEventListener(
+				'abort',
+				() => {
+					clearTimeout(id);
+					reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+				},
+				{ once: true },
+			);
+		});
+	}
+
+	function waitForTransition(el, fallbackMs, signal) {
+		return new Promise((resolve, reject) => {
+			if (signal?.aborted) {
+				reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+				return;
+			}
+			let settled = false;
+			const finish = () => {
+				if (settled) return;
+				settled = true;
+				el.removeEventListener('transitionend', onEnd);
+				signal?.removeEventListener('abort', onAbort);
+				resolve();
+			};
+			const onEnd = (event) => {
+				if (event.target === el) finish();
+			};
+			const onAbort = () => {
+				el.removeEventListener('transitionend', onEnd);
+				reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+			};
+			el.addEventListener('transitionend', onEnd);
+			signal?.addEventListener('abort', onAbort, { once: true });
+			setTimeout(finish, fallbackMs + 50);
+		});
+	}
+
+	function setFadeOutTransition(el) {
+		el.style.transition = [
+			`opacity ${OUT_MS}ms linear`,
+			`filter ${OUT_MS}ms linear`,
+			`transform ${OUT_MS}ms linear`,
+			`visibility 0s linear ${OUT_MS}ms`,
+		].join(', ');
+	}
+
+	function setFadeInTransition(el) {
+		el.style.transition = [
+			`opacity ${IN_MS}ms linear`,
+			`filter ${IN_MS}ms linear`,
+			`transform ${IN_MS}ms linear`,
+			`visibility 0s linear 0s`,
+		].join(', ');
+	}
+
+	async function fadeOut(el, signal) {
+		setFadeOutTransition(el);
+		el.classList.remove('is-visible');
+		await waitForTransition(el, OUT_MS, signal);
+		el.style.removeProperty('visibility');
+		el.style.removeProperty('filter');
+		el.style.removeProperty('transform');
+	}
+
+	async function fadeIn(el, signal) {
+		el.style.removeProperty('filter');
+		el.style.removeProperty('transform');
+		el.style.visibility = 'visible';
+		setFadeInTransition(el);
+		await wait(0, signal);
+		el.classList.add('is-visible');
+		await waitForTransition(el, IN_MS, signal);
+		el.style.removeProperty('visibility');
+	}
+
+	async function runHeroSequence(signal) {
+		const hero = document.querySelector('.cinematic-hero');
+		const el = document.getElementById('hero-line');
+		const titleEl = document.getElementById('hero-title');
+		if (!hero || !el || !titleEl) return;
+
+		titleEl.classList.remove('is-visible');
+		titleEl.style.removeProperty('visibility');
+		titleEl.style.removeProperty('transition');
+
+		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+			el.innerHTML = '';
+			titleEl.classList.add('is-visible');
+			titleEl.style.visibility = 'visible';
+			hero.classList.add('is-reduced-motion', 'is-complete');
+			return;
+		}
+
+		await wait(INITIAL_DELAY_MS, signal);
+
+		for (let i = 0; i < lineDefs.length; i += 1) {
+			const line = lineDefs[i];
+
+			if (i > 0) {
+				await fadeOut(el, signal);
+				await wait(LINE_GAP_MS, signal);
+				el.innerHTML = partsToHtml(line.parts);
+			} else {
+				el.innerHTML = partsToHtml(line.parts);
+			}
+
+			await fadeIn(el, signal);
+			await wait(line.hold, signal);
+		}
+
+		await fadeOut(el, signal);
+		el.innerHTML = '';
+		await fadeIn(titleEl, signal);
+		hero.classList.add('is-complete');
+		hero.dispatchEvent(new CustomEvent('dbm:hero-title-visible'));
+	}
+
+	function startHeroSequence() {
+		window.__dbmHeroAbort?.abort();
+		const controller = new AbortController();
+		window.__dbmHeroAbort = controller;
+		runHeroSequence(controller.signal).catch((err) => {
+			if (err?.name !== 'AbortError') throw err;
+		});
+	}
+
+	startHeroSequence();
+	document.addEventListener('astro:page-load', startHeroSequence);
+</script>

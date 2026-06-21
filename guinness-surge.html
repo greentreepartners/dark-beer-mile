@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guinness Nitrogen Surge — Background Animation</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+
+    canvas#surge {
+      display: block;
+      width: 100%;
+      height: 100%;
+      position: fixed;
+      top: 0; left: 0;
+    }
+
+    /* ── Demo overlay — remove when embedding ── */
+    #demo-overlay {
+      position: fixed;
+      top: 68%; left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      pointer-events: none;
+      z-index: 10;
+    }
+    #demo-overlay h1 {
+      font-family: 'Georgia', serif;
+      font-size: clamp(2rem, 6vw, 5rem);
+      font-weight: 400;
+      color: rgba(255, 248, 220, 0.90);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      text-shadow: 0 2px 60px rgba(0,0,0,0.95);
+    }
+    #demo-overlay p {
+      font-family: 'Georgia', serif;
+      font-size: clamp(0.75rem, 1.8vw, 1rem);
+      color: rgba(210, 180, 140, 0.60);
+      letter-spacing: 0.35em;
+      margin-top: 0.7em;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="surge"></canvas>
+
+  <div id="demo-overlay">
+    <h1>Guinness</h1>
+    <p>Made of More</p>
+  </div>
+
+  <script>
+  /**
+   * ═══════════════════════════════════════════════════════════════════
+   *  GUINNESS NITROGEN SURGE — WebGL Background Animation  v5 (final)
+   *  ─────────────────────────────────────────────────────────────────
+   *  Recreates the turbulent nitrogen cascade effect from the
+   *  Guinness Cinema Surge Experience (Korb / LOVE Agency, 2016).
+   *
+   *  Composition (matches reference image):
+   *  • Dense, intricate turbulent foam in the upper ~45% of frame
+   *  • Cream/ivory peaks at the very top edge
+   *  • Rich amber/mahogany/chestnut foam body with tight texture
+   *  • Cascading tendrils descending into the dark stout body
+   *  • Near-black void in the lower ~55% of frame
+   *
+   *  ─── EMBEDDING GUIDE ────────────────────────────────────────────
+   *
+   *  OPTION A — Full-page background (simplest):
+   *    Copy this entire file as-is. Remove the #demo-overlay div.
+   *
+   *  OPTION B — Section/hero background:
+   *    <div style="position:relative; height:100vh; overflow:hidden;">
+   *      <canvas id="surge" style="position:absolute;
+   *        top:0; left:0; width:100%; height:100%; z-index:0;"></canvas>
+   *      <div style="position:relative; z-index:1;">
+   *        <!-- your content -->
+   *      </div>
+   *    </div>
+   *    + include the <script> block below.
+   *
+   *  OPTION C — Webflow custom code:
+   *    In Page Settings > Custom Code > Before </body>, paste the
+   *    <canvas> tag and <script> block. In your section, set
+   *    background to transparent and add a custom attribute
+   *    style="position:relative; z-index:1;" to your content.
+   *
+   *  OPTION D — Squarespace / Wix code block:
+   *    Paste the full HTML into a Code Block set to "display as HTML".
+   *    Adjust canvas CSS to position:absolute within a relative wrapper.
+   *
+   *  ─── CUSTOMISATION ──────────────────────────────────────────────
+   *  Speed:     Change `u_time * 0.09` — lower = slower, higher = faster
+   *  Foam size: Change `foamFloor` value (0.0–1.0, default 0.42)
+   *  Colours:   Edit the guinnessPalette() stops
+   * ═══════════════════════════════════════════════════════════════════
+   */
+  (function () {
+    'use strict';
+
+    const canvas = document.getElementById('surge');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+
+    if (!gl) {
+      // CSS gradient fallback
+      canvas.style.background =
+        'linear-gradient(to bottom, #d4a060 0%, #8b3a10 18%, #3a1208 36%, #0a0402 50%, #000 65%)';
+      return;
+    }
+
+    // ── Vertex shader ──────────────────────────────────────────────
+    const vsSource = `
+      attribute vec2 a_position;
+      void main() {
+        gl_Position = vec4(a_position, 0.0, 1.0);
+      }
+    `;
+
+    // ── Fragment shader ────────────────────────────────────────────
+    const fsSource = `
+      precision highp float;
+
+      uniform vec2  u_resolution;
+      uniform float u_time;
+
+      // ── Noise primitives ──────────────────────────────────────────
+
+      float hash(vec2 p) {
+        p = fract(p * vec2(234.34, 435.345));
+        p += dot(p, p + 34.23);
+        return fract(p.x * p.y);
+      }
+
+      vec2 grad2(vec2 p) {
+        float h = hash(p) * 6.28318530718;
+        return vec2(cos(h), sin(h));
+      }
+
+      // Gradient noise — quintic smoothstep, fully isotropic
+      float gnoise(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        vec2 u = f*f*f*(f*(f*6.0-15.0)+10.0);
+        return mix(
+          mix(dot(grad2(i),           f),
+              dot(grad2(i+vec2(1,0)), f-vec2(1,0)), u.x),
+          mix(dot(grad2(i+vec2(0,1)), f-vec2(0,1)),
+              dot(grad2(i+vec2(1,1)), f-vec2(1,1)), u.x),
+          u.y
+        ) * 0.5 + 0.5;
+      }
+
+      // fBm — 8 octaves for maximum detail density
+      float fbm(vec2 p) {
+        float v = 0.0, a = 0.5;
+        mat2 rot = mat2(0.8, 0.6, -0.6, 0.8);
+        for (int i = 0; i < 8; i++) {
+          v += a * gnoise(p);
+          p  = rot * p * 2.05;
+          a *= 0.48;
+        }
+        return v;
+      }
+
+      // ── Colour palette ────────────────────────────────────────────
+      // 0.0 = void black → 1.0 = ivory cream
+      vec3 guinnessPalette(float t) {
+        t = clamp(t, 0.0, 1.0);
+
+        vec3 c0 = vec3(0.000, 0.000, 0.000);   // void black
+        vec3 c1 = vec3(0.035, 0.008, 0.002);   // near-black
+        vec3 c2 = vec3(0.100, 0.025, 0.005);   // deep mahogany
+        vec3 c3 = vec3(0.220, 0.060, 0.010);   // dark chestnut
+        vec3 c4 = vec3(0.380, 0.120, 0.020);   // rich amber
+        vec3 c5 = vec3(0.560, 0.230, 0.048);   // warm caramel
+        vec3 c6 = vec3(0.620, 0.300, 0.070);   // golden amber
+        vec3 c7 = vec3(0.780, 0.520, 0.200);   // warm cream
+        vec3 c8 = vec3(0.900, 0.780, 0.520);   // ivory cream peak
+
+        float s = t * 8.0;
+        int   n = int(s);
+        float r = fract(s);
+
+        if (n == 0) return mix(c0, c1, r);
+        if (n == 1) return mix(c1, c2, r);
+        if (n == 2) return mix(c2, c3, r);
+        if (n == 3) return mix(c3, c4, r);
+        if (n == 4) return mix(c4, c5, r);
+        if (n == 5) return mix(c5, c6, r);
+        if (n == 6) return mix(c6, c7, r);
+        return mix(c7, c8, clamp(r, 0.0, 1.0));
+      }
+
+      // ── Main ──────────────────────────────────────────────────────
+      void main() {
+        vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+        // uv.y = 1.0 is TOP, 0.0 is BOTTOM
+
+        float aspect = u_resolution.x / u_resolution.y;
+        // Scale X by aspect, but also scale overall to increase
+        // noise frequency → denser, tighter foam texture
+        vec2 p = vec2(uv.x * aspect * 1.8, uv.y * 1.4);
+
+        float t = u_time * 0.09;
+
+        // ── Three-layer domain-warped fBm ─────────────────────────
+        // This produces the characteristic folded, volumetric foam
+
+        // Layer 1: Base flow — slow horizontal drift
+        float n1 = fbm(p * 1.0 + vec2(t * 0.16, t * 0.025));
+
+        // Layer 2: First warp pass
+        vec2 w1 = vec2(
+          fbm(p * 1.3 + vec2(t * 0.12, 0.15) + vec2(0.0, 0.0)),
+          fbm(p * 1.3 + vec2(0.3, t * 0.10)  + vec2(3.7, 2.1))
+        );
+        float n2 = fbm((p + w1 * 0.42) * 2.2 + vec2(t * 0.14, -t * 0.055));
+
+        // Layer 3: Second warp pass — fine turbulent detail
+        vec2 w2 = vec2(
+          fbm((p + w1*0.3) * 3.8 + vec2(t * 0.22, t * 0.07)),
+          fbm((p + w1*0.3) * 3.8 + vec2(t * 0.06, t * 0.18) + vec2(2.9, 5.8))
+        );
+        float n3 = fbm((p + w1*0.3 + w2*0.20) * 5.0 + vec2(-t * 0.10, t * 0.26));
+
+        // Layer 4: Ultra-fine surface texture — the creamy micro-bubbles
+        float n4 = fbm(p * 8.0 + w1 * 0.5 + vec2(t * 0.30, t * 0.15));
+
+        // Combined density
+        float noise = n1 * 0.42 + n2 * 0.32 + n3 * 0.18 + n4 * 0.08;
+
+        // ── Foam boundary ─────────────────────────────────────────
+        // yInv: 0 = top of screen, 1 = bottom
+        float yInv = 1.0 - uv.y;
+
+        // Noisy foam floor
+        float bNoise = fbm(vec2(p.x * 0.7 + t * 0.09, 0.35));
+        // Floor at ~32% down from top, ±20% undulation
+        float foamFloor = 0.32 + (bNoise - 0.5) * 0.40;
+
+        // Foam presence — sharper transition
+        float foamPresence = 1.0 - smoothstep(
+          foamFloor - 0.04,
+          foamFloor + 0.10,
+          yInv
+        );
+
+        // ── Vertical brightness gradient ──────────────────────────
+        // Cream at top, darker toward the foam floor
+        // Matches reference: bright top, dark bottom of foam mass
+        float normY = clamp(yInv / max(foamFloor, 0.01), 0.0, 1.0);
+        float vertGrad = pow(1.0 - normY, 2.2);  // power falloff — darker toward floor
+
+        // ── Cascading tendrils ────────────────────────────────────
+        // Nitrogen streams below the main foam boundary
+        float tNoise = fbm(
+          vec2(p.x * 2.5 + t * 0.16, p.y * 2.0 + t * 0.20)
+        );
+        float tMask = smoothstep(foamFloor + 0.02, foamFloor + 0.25, yInv)
+                    * smoothstep(foamFloor + 0.40, foamFloor + 0.08, yInv);
+        float tendrils = smoothstep(0.54, 0.78, tNoise) * tMask * 0.48;
+
+        // ── Final density ─────────────────────────────────────────
+        // Combine: foam body + vertical gradient boost + tendrils
+        float density = noise * foamPresence
+                      + vertGrad * foamPresence * 0.28
+                      + tendrils;
+
+        // Remap — tighter curve for denser foam
+        float intensity = smoothstep(0.20, 0.82, density);
+
+        // Internal glow — bright nitrogen bubble clusters
+        float gNoise = fbm(p * 2.8 + vec2(t * 0.28, t * 0.14));
+        float glow = smoothstep(0.62, 0.84, gNoise) * foamPresence * 0.22;
+        intensity = clamp(intensity + glow, 0.0, 1.0);
+
+        // ── Colour ────────────────────────────────────────────────
+        vec3 colour = guinnessPalette(intensity);
+
+        // Subtle edge vignette
+        float vx = abs(uv.x - 0.5) * 2.0;
+        float vignette = 1.0 - smoothstep(0.6, 1.0, vx) * 0.30;
+        colour *= vignette;
+
+        gl_FragColor = vec4(colour, 1.0);
+      }
+    `;
+
+    // ── Shader compilation ─────────────────────────────────────────
+    function compileShader(type, src) {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+        console.error('Shader error:', gl.getShaderInfoLog(s));
+        return null;
+      }
+      return s;
+    }
+
+    const program = (() => {
+      const p = gl.createProgram();
+      gl.attachShader(p, compileShader(gl.VERTEX_SHADER,   vsSource));
+      gl.attachShader(p, compileShader(gl.FRAGMENT_SHADER, fsSource));
+      gl.linkProgram(p);
+      if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+        console.error('Link error:', gl.getProgramInfoLog(p));
+        return null;
+      }
+      return p;
+    })();
+
+    gl.useProgram(program);
+
+    // ── Full-screen quad ───────────────────────────────────────────
+    const vbo = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+      -1,-1,  1,-1,  -1,1,
+      -1, 1,  1,-1,   1,1,
+    ]), gl.STATIC_DRAW);
+
+    const posLoc = gl.getAttribLocation(program, 'a_position');
+    gl.enableVertexAttribArray(posLoc);
+    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+    const uRes  = gl.getUniformLocation(program, 'u_resolution');
+    const uTime = gl.getUniformLocation(program, 'u_time');
+
+    // ── Resize ─────────────────────────────────────────────────────
+    function resize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const w = Math.floor(canvas.clientWidth  * dpr);
+      const h = Math.floor(canvas.clientHeight * dpr);
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width  = w;
+        canvas.height = h;
+        gl.viewport(0, 0, w, h);
+      }
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // ── Render loop ────────────────────────────────────────────────
+    let t0 = null;
+    function render(ts) {
+      if (!t0) t0 = ts;
+      resize();
+      gl.uniform2f(uRes, canvas.width, canvas.height);
+      gl.uniform1f(uTime, (ts - t0) / 1000);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      requestAnimationFrame(render);
+    }
+    requestAnimationFrame(render);
+
+  })();
+  </script>
+
+</body>
+</html>

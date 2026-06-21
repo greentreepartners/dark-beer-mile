@@ -1,5 +1,5 @@
 ---
-
+import CinematicHero from '../components/CinematicHero.astro';
 ---
 
 <html lang="en">
@@ -13,14 +13,22 @@
 		<title>Dark Beer Mile</title>
 	</head>
 	<body>
-		<main class="hero">
-			<h1>Dark Beer Mile</h1>
-			<img src="/logo.png" alt="Dark Beer Mile logo" class="logo" width="320" height="320" />
+		<main class="page">
+			<CinematicHero />
 		</main>
 	</body>
 </html>
 
-<style>
+<style is:global>
+	:root {
+		--stout-core: #0a0402;
+		--stout-body: #1a0601;
+		--rust-dark: #3a1208;
+		--amber: #8b3a10;
+		--foam: #f2dea3;
+		--amber-bright: #d4a060;
+	}
+
 	* {
 		margin: 0;
 		padding: 0;
@@ -30,38 +38,15 @@
 	html,
 	body {
 		height: 100%;
-		background: #000;
-		color: #111;
+		background: var(--stout-core);
+		color: var(--foam);
 	}
 
 	body {
-		display: flex;
-		align-items: center;
-		justify-content: center;
 		font-family: system-ui, -apple-system, sans-serif;
 	}
 
-	.hero {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 2rem;
-		padding: 2rem;
-		text-align: center;
-	}
-
-	h1 {
-		color: #111;
-		font-size: clamp(1.5rem, 4vw, 2.5rem);
-		font-weight: 300;
-		letter-spacing: 0.4em;
-		text-transform: uppercase;
-		text-shadow: 0 0 1px rgba(255, 255, 255, 0.05);
-	}
-
-	.logo {
-		width: min(320px, 70vw);
-		height: auto;
+	.page {
+		min-height: 100%;
 	}
 </style>

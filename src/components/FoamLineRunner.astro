@@ -1,0 +1,137 @@
+---
+/**
+ * FoamLineRunner — cream silhouette crosses the foam/stout line once after hero title.
+ * Asset: public/runner-foam.webm (VP9+alpha, hflip + colorkey + #f2dea3 tint via ffmpeg).
+ * Processed with:
+ *   ffmpeg -i <source.webm> -t 5 -filter_script:v filter.txt \
+ *     -c:v libvpx-vp9 -pix_fmt yuva420p -auto-alt-ref 0 -b:v 500k public/runner-foam.webm
+ */
+interface Props {
+	durationMs?: number;
+	src?: string;
+}
+
+const { durationMs = 10000, src = '/runner-foam.webm' } = Astro.props;
+---
+
+<div class="foam-line-runner" hidden aria-hidden="true">
+	<div class="foam-line-runner__track">
+		<div class="foam-line-runner__sprite" style={`--runner-duration: ${durationMs}ms`}>
+			<video
+				class="foam-line-runner__video"
+				src={src}
+				muted
+				playsinline
+				preload="auto"
+				loop
+			></video>
+		</div>
+	</div>
+</div>
+
+<style>
+	.foam-line-runner {
+		position: absolute;
+		inset: 0;
+		z-index: 0;
+		overflow: hidden;
+		pointer-events: none;
+	}
+
+	.foam-line-runner__track {
+		position: absolute;
+		left: 0;
+		right: 0;
+		top: var(--foam-line-y, 32%);
+		height: 0;
+	}
+
+	/* Bottom edge of sprite sits on foam line (feet on track Y). */
+	.foam-line-runner__sprite {
+		position: absolute;
+		left: 0;
+		bottom: 0;
+		height: clamp(2.97rem, 10.56vh, 7.26rem);
+		transform: translateX(-120%);
+		will-change: transform;
+	}
+
+	.foam-line-runner__sprite.is-running {
+		animation: foam-runner-cross var(--runner-duration, 10000ms) linear forwards;
+	}
+
+	.foam-line-runner__video {
+		display: block;
+		height: 100%;
+		width: auto;
+		pointer-events: none;
+	}
+
+	@keyframes foam-runner-cross {
+		from {
+			transform: translateX(-120%);
+		}
+
+		to {
+			transform: translateX(calc(100vw + 120%));
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.foam-line-runner {
+			display: none;
+		}
+	}
+</style>
+
+<script>
+	function bindFoamLineRunner() {
+		const hero = document.querySelector('.cinematic-hero');
+		const runner = document.querySelector('.foam-line-runner');
+		if (!hero || !runner) return;
+
+		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+		const sprite = runner.querySelector('.foam-line-runner__sprite');
+		const video = runner.querySelector('.foam-line-runner__video');
+		if (!(sprite instanceof HTMLElement) || !(video instanceof HTMLVideoElement)) return;
+
+		const crossDurationSec =
+			parseInt(getComputedStyle(sprite).getPropertyValue('--runner-duration'), 10) / 1000 || 10;
+
+		const syncVideoPlaybackRate = () => {
+			if (!Number.isFinite(video.duration) || video.duration <= 0) return;
+			video.playbackRate = (video.duration / crossDurationSec) * 1.33;
+		};
+
+		video.addEventListener('loadedmetadata', syncVideoPlaybackRate);
+
+		const startRunner = () => {
+			if (sprite.classList.contains('is-running')) return;
+
+			runner.hidden = false;
+			sprite.classList.remove('is-running');
+			void sprite.offsetWidth;
+			syncVideoPlaybackRate();
+			video.currentTime = 0;
+			video.play().catch(() => {});
+			sprite.classList.add('is-running');
+		};
+
+		const onAnimationEnd = (event: AnimationEvent) => {
+			if (event.target !== sprite) return;
+			sprite.classList.remove('is-running');
+			video.pause();
+			runner.hidden = true;
+		};
+
+		sprite.removeEventListener('animationend', onAnimationEnd);
+		sprite.addEventListener('animationend', onAnimationEnd);
+
+		hero.removeEventListener('dbm:hero-title-visible', startRunner);
+		hero.addEventListener('dbm:hero-title-visible', startRunner, { once: true });
+	}
+
+	bindFoamLineRunner();
+	document.addEventListener('astro:page-load', bindFoamLineRunner);
+</script>

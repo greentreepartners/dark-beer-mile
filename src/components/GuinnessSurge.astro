@@ -1,0 +1,432 @@
+---
+/**
+ * GuinnessSurge — full-viewport WebGL nitrogen cascade background.
+ * Warm stout palette; static CSS gradient when WebGL unavailable or reduced motion.
+ */
+---
+
+<div class="guinness-surge" aria-hidden="true">
+	<canvas id="surge"></canvas>
+</div>
+
+<style>
+	.guinness-surge {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		z-index: 0;
+		pointer-events: none;
+	}
+
+	canvas#surge {
+		display: block;
+		width: 100%;
+		height: 100%;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		canvas#surge {
+			background: linear-gradient(
+				to bottom,
+				#d4a060 0%,
+				#8b3a10 18%,
+				#3a1208 36%,
+				#0a0402 50%,
+				#1a0601 65%
+			);
+		}
+	}
+</style>
+
+<script is:inline>
+	(function () {
+		'use strict';
+
+		const STATIC_GRADIENT =
+			'linear-gradient(to bottom, #d4a060 0%, #8b3a10 18%, #3a1208 36%, #0a0402 50%, #1a0601 65%)';
+		const FRAME_MIN_MS = 1000 / 30;
+		const MAX_DPR = 1;
+
+		let rafId = null;
+		let resizeObserver = null;
+		let surgeState = null;
+		let onVisibilityChange = null;
+		let onFocusResume = null;
+		let onPageShowResume = null;
+		let bootPending = false;
+
+		function applyStaticFallback(canvas) {
+			canvas.style.background = STATIC_GRADIENT;
+		}
+
+		function stopSurge() {
+			if (surgeState) surgeState.running = false;
+			if (rafId != null) {
+				cancelAnimationFrame(rafId);
+				rafId = null;
+			}
+			if (resizeObserver) {
+				resizeObserver.disconnect();
+				resizeObserver = null;
+			}
+			if (onVisibilityChange) {
+				document.removeEventListener('visibilitychange', onVisibilityChange);
+				onVisibilityChange = null;
+			}
+			if (onFocusResume) {
+				window.removeEventListener('focus', onFocusResume);
+				onFocusResume = null;
+			}
+			if (onPageShowResume) {
+				window.removeEventListener('pageshow', onPageShowResume);
+				onPageShowResume = null;
+			}
+			surgeState = null;
+		}
+
+		// Tear down prior instance after HMR / script re-run (new IIFE, old RAF still queued).
+		window.__dbmSurgeStop?.();
+		window.__dbmSurgeStop = stopSurge;
+
+		function startSurge() {
+			const canvas = document.getElementById('surge');
+			if (!canvas) return;
+
+			if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+				console.warn(
+					'GuinnessSurge: prefers-reduced-motion — using static CSS gradient',
+				);
+				applyStaticFallback(canvas);
+				return;
+			}
+
+			// Already running — astro:page-load can fire after inline init.
+			if (surgeState?.canvas === canvas && surgeState.running) {
+				if (rafId == null) surgeState.resumeLoop?.();
+				return;
+			}
+
+			stopSurge();
+
+			const gl =
+				canvas.getContext('webgl', { alpha: false, antialias: false }) ||
+				canvas.getContext('experimental-webgl');
+
+			if (!gl) {
+				applyStaticFallback(canvas);
+				return;
+			}
+
+			const vsSource = `
+      attribute vec2 a_position;
+      void main() {
+        gl_Position = vec4(a_position, 0.0, 1.0);
+      }
+    `;
+
+			const fsSource = `
+      precision highp float;
+
+      uniform vec2  u_resolution;
+      uniform float u_time;
+      // uniform vec2 u_mouse; // future: cursor-driven ripple / foam disturbance
+
+      // --stout-core #0a0402, --stout-body #1a0601
+      const vec3 STOUT_CORE = vec3(0.039, 0.016, 0.008);
+      const vec3 STOUT_BODY = vec3(0.102, 0.024, 0.004);
+      const float STOUT_MARGIN = 0.04;
+
+      float hash(vec2 p) {
+        p = fract(p * vec2(234.34, 435.345));
+        p += dot(p, p + 34.23);
+        return fract(p.x * p.y);
+      }
+
+      vec2 grad2(vec2 p) {
+        float h = hash(p) * 6.28318530718;
+        return vec2(cos(h), sin(h));
+      }
+
+      float gnoise(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        vec2 u = f*f*f*(f*(f*6.0-15.0)+10.0);
+        return mix(
+          mix(dot(grad2(i),           f),
+              dot(grad2(i+vec2(1,0)), f-vec2(1,0)), u.x),
+          mix(dot(grad2(i+vec2(0,1)), f-vec2(0,1)),
+              dot(grad2(i+vec2(1,1)), f-vec2(1,1)), u.x),
+          u.y
+        ) * 0.5 + 0.5;
+      }
+
+      // Lighter fBm (3 octaves) — foam band only
+      float fbmFoam(vec2 p) {
+        float v = 0.0, a = 0.5;
+        mat2 rot = mat2(0.8, 0.6, -0.6, 0.8);
+        for (int i = 0; i < 3; i++) {
+          v += a * gnoise(p);
+          p  = rot * p * 2.05;
+          a *= 0.48;
+        }
+        return v;
+      }
+
+      vec3 guinnessPalette(float t) {
+        t = clamp(t, 0.0, 1.0);
+
+        vec3 c0 = vec3(0.039, 0.016, 0.008);
+        vec3 c1 = vec3(0.063, 0.024, 0.004);
+        vec3 c2 = vec3(0.100, 0.025, 0.005);
+        vec3 c3 = vec3(0.220, 0.060, 0.010);
+        vec3 c4 = vec3(0.380, 0.120, 0.020);
+        vec3 c5 = vec3(0.560, 0.230, 0.048);
+        vec3 c6 = vec3(0.620, 0.300, 0.070);
+        vec3 c7 = vec3(0.780, 0.520, 0.200);
+        vec3 c8 = vec3(0.900, 0.780, 0.520);
+
+        float s = t * 8.0;
+        int   n = int(s);
+        float r = fract(s);
+
+        if (n == 0) return mix(c0, c1, r);
+        if (n == 1) return mix(c1, c2, r);
+        if (n == 2) return mix(c2, c3, r);
+        if (n == 3) return mix(c3, c4, r);
+        if (n == 4) return mix(c4, c5, r);
+        if (n == 5) return mix(c5, c6, r);
+        if (n == 6) return mix(c6, c7, r);
+        return mix(c7, c8, clamp(r, 0.0, 1.0));
+      }
+
+      vec3 stoutBodyColour(float yInv) {
+        float bodyT = smoothstep(0.45, 1.0, yInv);
+        return mix(STOUT_CORE, STOUT_BODY, bodyT);
+      }
+
+      void main() {
+        vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+        float yInv = 1.0 - uv.y;
+
+        // Fast-path: clearly below foam band (~top 45%) — no time, no fBm
+        if (yInv > 0.52) {
+          vec3 colour = stoutBodyColour(yInv);
+          float vx = abs(uv.x - 0.5) * 2.0;
+          colour *= 1.0 - smoothstep(0.6, 1.0, vx) * 0.30;
+          gl_FragColor = vec4(colour, 1.0);
+          return;
+        }
+
+        float aspect = u_resolution.x / u_resolution.y;
+        vec2 p = vec2(uv.x * aspect * 1.8, uv.y * 1.4);
+        float t = u_time * 0.21;
+
+        float bNoise = fbmFoam(vec2(p.x * 0.7 + t * 0.09, 0.35));
+        float foamFloor = 0.32 + (bNoise - 0.5) * 0.40;
+
+        if (yInv > foamFloor + STOUT_MARGIN) {
+          vec3 colour = stoutBodyColour(yInv);
+          float vx = abs(uv.x - 0.5) * 2.0;
+          colour *= 1.0 - smoothstep(0.6, 1.0, vx) * 0.30;
+          gl_FragColor = vec4(colour, 1.0);
+          return;
+        }
+
+        float n1 = fbmFoam(p * 1.0 + vec2(t * 0.16, t * 0.025));
+
+        vec2 w1 = vec2(
+          fbmFoam(p * 1.3 + vec2(t * 0.12, 0.15)),
+          fbmFoam(p * 1.3 + vec2(0.3, t * 0.10) + vec2(3.7, 2.1))
+        );
+        float n2 = fbmFoam((p + w1 * 0.42) * 2.2 + vec2(t * 0.14, -t * 0.055));
+
+        float n4 = fbmFoam(p * 8.0 + w1 * 0.5 + vec2(t * 0.30, t * 0.15));
+
+        float noise = n1 * 0.48 + n2 * 0.38 + n4 * 0.14;
+
+        float foamPresence = 1.0 - smoothstep(
+          foamFloor - 0.04,
+          foamFloor + 0.10,
+          yInv
+        );
+
+        float normY = clamp(yInv / max(foamFloor, 0.01), 0.0, 1.0);
+        float vertGrad = pow(1.0 - normY, 2.2);
+
+        float detailNoise = fbmFoam(p * 2.6 + vec2(t * 0.22, t * 0.17));
+        float tMask = smoothstep(foamFloor + 0.02, foamFloor + 0.25, yInv)
+                    * smoothstep(foamFloor + 0.40, foamFloor + 0.08, yInv);
+        float tendrils = smoothstep(0.54, 0.78, detailNoise) * tMask * 0.48;
+
+        float density = noise * foamPresence
+                      + vertGrad * foamPresence * 0.28
+                      + tendrils;
+
+        float intensity = smoothstep(0.20, 0.82, density);
+
+        float glow = smoothstep(0.62, 0.84, detailNoise) * foamPresence * 0.22;
+        intensity = clamp(intensity + glow, 0.0, 1.0);
+
+        vec3 colour = guinnessPalette(intensity);
+
+        float vx = abs(uv.x - 0.5) * 2.0;
+        float vignette = 1.0 - smoothstep(0.6, 1.0, vx) * 0.30;
+        colour *= vignette;
+
+        gl_FragColor = vec4(colour, 1.0);
+      }
+    `;
+
+			function compileShader(type, src) {
+				const s = gl.createShader(type);
+				gl.shaderSource(s, src);
+				gl.compileShader(s);
+				if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+					console.error('Shader error:', gl.getShaderInfoLog(s));
+					return null;
+				}
+				return s;
+			}
+
+			function createProgram() {
+				const vs = compileShader(gl.VERTEX_SHADER, vsSource);
+				const fs = compileShader(gl.FRAGMENT_SHADER, fsSource);
+				if (!vs || !fs) return null;
+
+				const p = gl.createProgram();
+				gl.attachShader(p, vs);
+				gl.attachShader(p, fs);
+				gl.linkProgram(p);
+				if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+					console.error('Link error:', gl.getProgramInfoLog(p));
+					return null;
+				}
+				return p;
+			}
+
+			const program = createProgram();
+			if (!program) return;
+
+			gl.useProgram(program);
+
+			const vbo = gl.createBuffer();
+			gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+			gl.bufferData(
+				gl.ARRAY_BUFFER,
+				new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
+				gl.STATIC_DRAW,
+			);
+
+			const posLoc = gl.getAttribLocation(program, 'a_position');
+			gl.enableVertexAttribArray(posLoc);
+			gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+			const uRes = gl.getUniformLocation(program, 'u_resolution');
+			const uTime = gl.getUniformLocation(program, 'u_time');
+			if (uTime == null) {
+				console.error(
+					'GuinnessSurge: u_time uniform missing — foam will not animate',
+				);
+				return;
+			}
+
+			const sizeRoot = canvas.closest('.hero-surface') || canvas.parentElement;
+
+			function resize() {
+				const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+				const rect = sizeRoot?.getBoundingClientRect();
+				const cw =
+					rect?.width ||
+					canvas.clientWidth ||
+					sizeRoot?.clientWidth ||
+					window.innerWidth;
+				const ch =
+					rect?.height ||
+					canvas.clientHeight ||
+					sizeRoot?.clientHeight ||
+					window.innerHeight;
+				const w = Math.max(1, Math.floor(cw * dpr));
+				const h = Math.max(1, Math.floor(ch * dpr));
+				if (canvas.width !== w || canvas.height !== h) {
+					canvas.width = w;
+					canvas.height = h;
+					gl.viewport(0, 0, w, h);
+				}
+			}
+
+			if (sizeRoot && typeof ResizeObserver !== 'undefined') {
+				resizeObserver = new ResizeObserver(resize);
+				resizeObserver.observe(sizeRoot);
+			}
+
+			resize();
+
+			// Monotonic clock — do not reset on visibility resume or animation freezes near t=0.
+			const startTime = performance.now();
+			let lastDrawTime = 0;
+
+			function render() {
+				if (!surgeState?.running) {
+					rafId = null;
+					return;
+				}
+
+				if (!document.hidden) {
+					const ts = performance.now();
+					if (ts - lastDrawTime >= FRAME_MIN_MS) {
+						lastDrawTime = ts;
+						resize();
+						gl.useProgram(program);
+						gl.uniform2f(uRes, canvas.width, canvas.height);
+						gl.uniform1f(uTime, (ts - startTime) * 0.001);
+						gl.drawArrays(gl.TRIANGLES, 0, 6);
+					}
+					rafId = requestAnimationFrame(render);
+				} else {
+					rafId = null;
+				}
+			}
+
+			function resumeLoop() {
+				if (surgeState?.running && !document.hidden && rafId == null) {
+					rafId = requestAnimationFrame(render);
+				}
+			}
+
+			onVisibilityChange = function () {
+				if (document.hidden) {
+					if (rafId != null) {
+						cancelAnimationFrame(rafId);
+						rafId = null;
+					}
+					return;
+				}
+				resumeLoop();
+			};
+			document.addEventListener('visibilitychange', onVisibilityChange);
+			onFocusResume = resumeLoop;
+			onPageShowResume = resumeLoop;
+			window.addEventListener('focus', onFocusResume);
+			window.addEventListener('pageshow', onPageShowResume);
+
+			surgeState = { canvas, gl, program, running: true, resumeLoop };
+			rafId = requestAnimationFrame(render);
+		}
+
+		function bootSurge() {
+			if (bootPending) return;
+			bootPending = true;
+			// Wait for layout so canvas backing store is non-zero before first draw.
+			requestAnimationFrame(() =>
+				requestAnimationFrame(() => {
+					bootPending = false;
+					startSurge();
+				}),
+			);
+		}
+
+		bootSurge();
+		document.addEventListener('astro:page-load', bootSurge);
+	})();
+</script>
