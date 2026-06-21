@@ -1,0 +1,933 @@
+---
+import HeroDetailPanel from './HeroDetailPanel.astro';
+import { legends } from '../data/legends';
+
+const IN_MS = 1100;
+const OUT_MS = 600;
+const GAP_MS = 300;
+const HOLD_MS = 8500;
+const QUICK_MS = 350;
+const STAGGER_MS = 280;
+
+const mileBeats = [
+	{
+		heading: 'One Mile',
+		lines: [
+			'Over the course of one mile, you will consume the darkness, or be consumed by it.',
+			'Four quarters stand between you and the light.',
+			'Four times the dark will be consumed.',
+			'Four times you will be measured.',
+		],
+	},
+	{
+		heading: 'The First Measure',
+		lines: [
+			'Before you run, you will be tested.',
+			'The potion must be dark, for it has forgotten what sunlight looks like.',
+		],
+	},
+	{
+		heading: 'The Quarter',
+		lines: [
+			'Once the dark is in you, the quarter begins.',
+			'A quarter mile stands before you.',
+		],
+	},
+	{
+		heading: 'The Reckoning',
+		lines: [
+			"At the quarter's end, you are measured again.",
+			'Another reckoning. You will be tested four times, four quarters, one mile, until there is nothing left to pour and nowhere left to run.',
+		],
+	},
+	{
+		heading: 'Should You Fail the Measure',
+		lines: [
+			'Should the darkness rise back up before you cross the line, should you be measured, and found wanting, one more quarter shall you perform.',
+			'The penalty lap forgives nothing.',
+		],
+	},
+	{
+		heading: 'The Last Light',
+		lines: [
+			'Cross the line standing, and the night remembers your name.',
+			'Cross it any other way, and the night remembers that too.',
+		],
+	},
+] as const;
+
+const nightBeats = [
+	{
+		heading: 'One Night',
+		lines: [
+			'On the darkest night of the year, the ritual is performed.',
+			'The solstice does not ask permission. It simply arrives: the longest dark, the shortest day, the year at its lowest ebb.',
+			'Every culture that has watched the sun retreat has built something to call it back. This is ours.',
+		],
+	},
+	{
+		heading: 'The Bargain',
+		lines: [
+			'Each year, on the darkest night, the same bargain is struck.',
+			"We give the night what it wants: four quarters, four pours, everything we've got. In exchange, we ask for one thing back.",
+			'Give us another year.',
+			'Not a good year. Not an easy one. Just another.',
+			'Another solstice to stand at. Another mile to run.',
+			'Another chance to be measured and not found wanting.',
+		],
+	},
+	{
+		heading: 'It Must Be the Darkest Night',
+		lines: [
+			"Run it in summer and it's just a beer mile.",
+			"Run it on the darkest night and it's a reckoning, the dark at its deepest, the light as far away as it ever gets.",
+			'No other night will do. It has to be this one.',
+		],
+	},
+	{
+		heading: 'The Return',
+		lines: [
+			'Someone has to finish first.',
+			'Someone has to be the one who carried the bargain across the line.',
+			'When the winner crosses, the ritual is complete, the night has had its due, and the light begins its slow return.',
+			'Not because of luck. Because someone stood at the darkest point of the year and did not stop.',
+			'That is what it means to win the Dark Beer Mile.',
+			"You didn't just run a mile. You brought the light back.",
+			'One night. The darkest night. The bargain kept.',
+		],
+	},
+] as const;
+
+const darknessBeats = [
+	{
+		heading: 'Poured in Darkness',
+		lines: ['To bring back the light, we must consume the dark.'],
+	},
+	{
+		heading: 'The Only Potion',
+		lines: [
+			'It must be dark, anything that has forgotten what the sun looks like.',
+			'Skip the lager. It need not present itself.',
+			'The ritual has no use for anything pale, anything light, anything of the sun. Dark is the only sacrifice it accepts.',
+		],
+	},
+	{
+		heading: 'The Measure',
+		lines: [
+			'The vessel must hold no less than 355ml, and the dark within it no less than 5% by volume.',
+		],
+	},
+	{
+		heading: 'The Vessel Itself',
+		lines: [
+			'It must come in a can.',
+			'A bottle cannot contain the dark.',
+		],
+	},
+	{
+		heading: 'The Fifth',
+		lines: [
+			'Bring four, and you bring exactly enough to fail.',
+			'The wise bring five.',
+			'Should the darkness rise back up before you cross the line, the penalty lap demands its own measure, and it will not wait while you find one.',
+			'Come with a spare, or come prepared to owe more than a lap.',
+		],
+	},
+	{
+		heading: '',
+		lines: ['One potion.', 'One measure.', 'Five, not four.'],
+	},
+] as const;
+---
+
+<HeroDetailPanel id="mile-panel" label="One mile route">
+	<div class="beat-panel">
+		<div class="beat-panel__slot" id="mile-beat-slot" aria-live="polite"></div>
+		<div class="beat-panel__static" id="mile-static-fallback" hidden>
+			{
+				mileBeats.map(({ heading, lines }) => (
+					<section class="beat-panel__static-beat">
+						{heading ? <p class="beat-panel__heading">{heading}</p> : null}
+						<div class="beat-panel__body">
+							{lines.map((text, index) => (
+								<span
+									class:list={[
+										index === 0
+											? 'beat-panel__lead'
+											: 'beat-panel__sentence',
+									]}
+								>
+									{text}
+								</span>
+							))}
+						</div>
+					</section>
+				))
+			}
+		</div>
+	</div>
+</HeroDetailPanel>
+
+<HeroDetailPanel id="night-panel" label="One night">
+	<div class="beat-panel">
+		<div class="beat-panel__slot" id="night-beat-slot" aria-live="polite"></div>
+		<div class="beat-panel__static" id="night-static-fallback" hidden>
+			{
+				nightBeats.map(({ heading, lines }) => (
+					<section class="beat-panel__static-beat">
+						{heading ? <p class="beat-panel__heading">{heading}</p> : null}
+						<div class="beat-panel__body">
+							{lines.map((text, index) => (
+								<span
+									class:list={[
+										index === 0
+											? 'beat-panel__lead'
+											: 'beat-panel__sentence',
+									]}
+								>
+									{text}
+								</span>
+							))}
+						</div>
+					</section>
+				))
+			}
+		</div>
+	</div>
+</HeroDetailPanel>
+
+<HeroDetailPanel id="darkness-panel" label="Poured in darkness">
+	<div class="beat-panel">
+		<div class="beat-panel__slot" id="darkness-beat-slot" aria-live="polite"></div>
+		<div class="beat-panel__static" id="darkness-static-fallback" hidden>
+			{
+				darknessBeats.map(({ heading, lines }) => (
+					<section class="beat-panel__static-beat">
+						{heading ? <p class="beat-panel__heading">{heading}</p> : null}
+						<div class="beat-panel__body">
+							{lines.map((text, index) => (
+								<span
+									class:list={[
+										index === 0
+											? 'beat-panel__lead'
+											: 'beat-panel__sentence',
+									]}
+								>
+									{text}
+								</span>
+							))}
+						</div>
+					</section>
+				))
+			}
+		</div>
+	</div>
+</HeroDetailPanel>
+
+<HeroDetailPanel id="legends-panel" label="Dark Beer Mile legends">
+	<div class="legends">
+		<ol class="legends-list">
+			{
+				legends.map(({ year, name, href }) => (
+					<li class="legends-row legends-list__item hero-detail-panel__item">
+						<span class="legends-list__year">{year}</span>
+						{href && name ? (
+							<a class="legends-list__link" href={href}>
+								{name}
+							</a>
+						) : (
+							<span class="legends-list__name">{name ?? ''}</span>
+						)}
+					</li>
+				))
+			}
+		</ol>
+		<p class="legends-cta hero-detail-panel__item">
+			<a class="legends-cta__link" href="#succumb-to-the-darkness">
+				Succumb to the Darkness
+			</a>
+		</p>
+	</div>
+</HeroDetailPanel>
+
+<style>
+	.hero-detail-panel__item {
+		opacity: 0;
+		visibility: hidden;
+		filter: blur(6px);
+		transform: scale(0.92);
+	}
+
+	.hero-detail-panel__item.is-visible {
+		opacity: 1;
+		visibility: visible;
+		filter: blur(0);
+		transform: scale(1);
+	}
+
+	.beat-panel {
+		width: 100%;
+		max-width: min(39rem, 100%);
+		margin-inline: auto;
+	}
+
+	.beat-panel__slot {
+		min-height: 0;
+	}
+
+	/* :global — beat slot HTML is injected via innerHTML without Astro scope attrs */
+	:global(.beat-panel__beat) {
+		opacity: 0;
+		visibility: hidden;
+		filter: blur(6px);
+		transform: scale(0.92);
+	}
+
+	:global(.beat-panel__beat.is-visible) {
+		opacity: 1;
+		visibility: visible;
+		filter: blur(0);
+		transform: scale(1);
+	}
+
+	:global(.beat-panel__body) {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0;
+		width: 100%;
+		font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+	}
+
+	:global(.beat-panel__lead) {
+		display: block;
+		width: 100%;
+		margin: 0;
+		margin-block-end: clamp(0.5rem, 1.5vw, 0.7rem);
+		font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+		font-size: clamp(1.2rem, 3.2vw, 1.65rem);
+		font-style: italic;
+		font-weight: 400;
+		line-height: 1.45;
+		letter-spacing: 0.01em;
+		text-align: center;
+		color: var(--foam);
+	}
+
+	:global(.beat-panel__sentence) {
+		display: block;
+		width: 100%;
+		max-width: 69ch;
+		margin: 0;
+		margin-block-end: 0.2em;
+		font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+		font-size: clamp(0.95rem, 2.4vw, 1.2rem);
+		font-style: normal;
+		font-weight: 400;
+		line-height: 1.48;
+		letter-spacing: 0.01em;
+		text-align: center;
+		color: var(--foam-muted);
+	}
+
+	:global(.beat-panel__sentence:last-child) {
+		margin-block-end: 0;
+	}
+
+	:global(.beat-panel__heading) {
+		display: block;
+		margin: 0 0 clamp(0.55rem, 1.6vw, 0.75rem);
+		font-family: var(--font-eyebrow);
+		font-size: clamp(0.58rem, 1.6vw, 0.72rem);
+		font-weight: 400;
+		line-height: 1.3;
+		letter-spacing: 0.22em;
+		text-align: center;
+		text-transform: uppercase;
+		color: var(--amber-bright);
+	}
+
+	.beat-panel__static {
+		display: none;
+		flex-direction: column;
+		gap: clamp(0.85rem, 2.5vw, 1.15rem);
+	}
+
+	.beat-panel__static-beat {
+		margin: 0;
+	}
+
+	.beat-panel.is-reduced-motion :global(.beat-panel__slot) {
+		display: none;
+	}
+
+	.beat-panel.is-reduced-motion :global(.beat-panel__static) {
+		display: flex;
+	}
+
+	.legends {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		width: 100%;
+	}
+
+	.legends-list {
+		display: flex;
+		flex-direction: column;
+		align-items: stretch;
+		gap: clamp(0.35rem, 1.2vw, 0.65rem);
+		width: fit-content;
+		max-width: 100%;
+		margin-inline: auto;
+		padding: 0;
+		list-style: none;
+	}
+
+	.legends-row {
+		display: grid;
+		grid-template-columns: 4.5rem 1fr;
+		gap: 1rem;
+		align-items: baseline;
+		width: 100%;
+		margin: 0;
+	}
+
+	.legends-list__year {
+		font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+		font-size: clamp(0.95rem, 2.8vw, 1.35rem);
+		font-weight: 700;
+		line-height: 1.2;
+		letter-spacing: 0.08em;
+		text-align: right;
+		color: var(--amber-bright);
+	}
+
+	.legends-list__name,
+	.legends-list__link {
+		font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+		font-size: clamp(0.95rem, 2.8vw, 1.35rem);
+		font-weight: 600;
+		line-height: 1.2;
+		letter-spacing: 0.04em;
+		text-align: left;
+	}
+
+	.legends-list__name {
+		color: var(--foam);
+	}
+
+	.legends-list__link {
+		color: var(--amber-bright);
+		text-decoration: underline;
+		text-decoration-color: rgba(212, 160, 96, 0.55);
+		text-underline-offset: 0.2em;
+	}
+
+	.legends-list__link:hover,
+	.legends-list__link:focus-visible {
+		text-decoration-color: var(--amber-bright);
+		outline: 1px solid var(--foam-border);
+		outline-offset: 3px;
+	}
+
+	.legends-cta {
+		margin: clamp(0.85rem, 2.4vw, 1.25rem) 0 0;
+		text-align: center;
+		width: 100%;
+	}
+
+	.legends-cta__link {
+		font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+		font-size: clamp(0.95rem, 2.8vw, 1.35rem);
+		font-weight: 600;
+		line-height: 1.2;
+		letter-spacing: 0.04em;
+		color: var(--amber-bright);
+		text-decoration: underline;
+		text-decoration-color: rgba(212, 160, 96, 0.55);
+		text-underline-offset: 0.2em;
+	}
+
+	.legends-cta__link:hover,
+	.legends-cta__link:focus-visible {
+		text-decoration-color: var(--amber-bright);
+		outline: 1px solid var(--foam-border);
+		outline-offset: 3px;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.hero-detail-panel__item {
+			opacity: 1;
+			visibility: visible;
+			filter: none;
+			transform: none;
+		}
+
+		:global(.beat-panel__beat) {
+			opacity: 1;
+			visibility: visible;
+			filter: none;
+			transform: none;
+		}
+	}
+</style>
+
+<script
+	define:vars={{
+		IN_MS,
+		OUT_MS,
+		GAP_MS,
+		HOLD_MS,
+		QUICK_MS,
+		STAGGER_MS,
+		mileBeats,
+		nightBeats,
+		darknessBeats,
+	}}
+>
+	const BEATS_BY_PANEL = {
+		'mile-panel': mileBeats,
+		'night-panel': nightBeats,
+		'darkness-panel': darknessBeats,
+	};
+
+	const PANEL_CONFIG = {
+		'mile-panel': {
+			sequence: true,
+			slotId: 'mile-beat-slot',
+			staticId: 'mile-static-fallback',
+		},
+		'night-panel': {
+			sequence: true,
+			slotId: 'night-beat-slot',
+			staticId: 'night-static-fallback',
+		},
+		'darkness-panel': {
+			sequence: true,
+			slotId: 'darkness-beat-slot',
+			staticId: 'darkness-static-fallback',
+		},
+		'legends-panel': { stagger: true },
+	};
+
+	function wait(ms, signal) {
+		return new Promise((resolve, reject) => {
+			if (signal?.aborted) {
+				reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+				return;
+			}
+			const id = setTimeout(resolve, ms);
+			signal?.addEventListener(
+				'abort',
+				() => {
+					clearTimeout(id);
+					reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+				},
+				{ once: true },
+			);
+		});
+	}
+
+	function waitForTransition(el, fallbackMs, signal) {
+		return new Promise((resolve, reject) => {
+			if (signal?.aborted) {
+				reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+				return;
+			}
+			let settled = false;
+			const finish = () => {
+				if (settled) return;
+				settled = true;
+				el.removeEventListener('transitionend', onEnd);
+				signal?.removeEventListener('abort', onAbort);
+				resolve();
+			};
+			const onEnd = (event) => {
+				if (event.target === el) finish();
+			};
+			const onAbort = () => {
+				el.removeEventListener('transitionend', onEnd);
+				reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+			};
+			el.addEventListener('transitionend', onEnd);
+			signal?.addEventListener('abort', onAbort, { once: true });
+			setTimeout(finish, fallbackMs + 50);
+		});
+	}
+
+	function setRowTransition(el, durationMs, delayVisibilityMs = 0) {
+		el.style.transition = [
+			`opacity ${durationMs}ms linear`,
+			`filter ${durationMs}ms linear`,
+			`transform ${durationMs}ms linear`,
+			`visibility 0s linear ${delayVisibilityMs}ms`,
+		].join(', ');
+	}
+
+	async function fadeOutRow(el, signal, durationMs = QUICK_MS) {
+		setRowTransition(el, durationMs, durationMs);
+		el.classList.remove('is-visible');
+		await waitForTransition(el, durationMs, signal);
+		el.style.removeProperty('visibility');
+		el.style.removeProperty('filter');
+		el.style.removeProperty('transform');
+	}
+
+	async function fadeInRow(el, signal, durationMs = IN_MS) {
+		el.style.removeProperty('filter');
+		el.style.removeProperty('transform');
+		el.style.visibility = 'visible';
+		setRowTransition(el, durationMs, 0);
+		await wait(0, signal);
+		el.classList.add('is-visible');
+		await waitForTransition(el, durationMs, signal);
+		el.style.removeProperty('visibility');
+	}
+
+	function resetRows(rows) {
+		for (const row of rows) {
+			row.classList.remove('is-visible');
+			row.style.removeProperty('transition');
+			row.style.removeProperty('visibility');
+			row.style.removeProperty('filter');
+			row.style.removeProperty('transform');
+		}
+	}
+
+	function beatBodyToHtml(lines) {
+		const [first, ...rest] = lines;
+		const lead = first
+			? `<span class="beat-panel__lead">${first}</span>`
+			: '';
+		const supporting = rest
+			.map((text) => `<span class="beat-panel__sentence">${text}</span>`)
+			.join('');
+		return `<div class="beat-panel__body">${lead}${supporting}</div>`;
+	}
+
+	function beatToHtml(beat) {
+		const heading = beat.heading
+			? `<p class="beat-panel__heading">${beat.heading}</p>`
+			: '';
+		return `<div class="beat-panel__beat">${heading}${beatBodyToHtml(beat.lines)}</div>`;
+	}
+
+	function setBeatFadeOutTransition(el, durationMs = OUT_MS) {
+		el.style.transition = [
+			`opacity ${durationMs}ms linear`,
+			`filter ${durationMs}ms linear`,
+			`transform ${durationMs}ms linear`,
+			`visibility 0s linear ${durationMs}ms`,
+		].join(', ');
+	}
+
+	function setBeatFadeInTransition(el, durationMs = IN_MS) {
+		el.style.transition = [
+			`opacity ${durationMs}ms linear`,
+			`filter ${durationMs}ms linear`,
+			`transform ${durationMs}ms linear`,
+			`visibility 0s linear 0s`,
+		].join(', ');
+	}
+
+	function resetBeatEl(beatEl) {
+		if (!beatEl) return;
+		beatEl.classList.remove('is-visible');
+		beatEl.style.removeProperty('transition');
+		beatEl.style.removeProperty('visibility');
+		beatEl.style.removeProperty('filter');
+		beatEl.style.removeProperty('transform');
+	}
+
+	function clearBeatSlot(slot) {
+		if (!slot) return;
+		resetBeatEl(slot.querySelector('.beat-panel__beat'));
+		slot.innerHTML = '';
+	}
+
+	async function fadeOutBeat(beatEl, signal, durationMs = OUT_MS) {
+		setBeatFadeOutTransition(beatEl, durationMs);
+		beatEl.classList.remove('is-visible');
+		await waitForTransition(beatEl, durationMs, signal);
+		beatEl.style.removeProperty('visibility');
+		beatEl.style.removeProperty('filter');
+		beatEl.style.removeProperty('transform');
+	}
+
+	async function fadeInBeat(beatEl, signal, durationMs = IN_MS) {
+		beatEl.style.removeProperty('filter');
+		beatEl.style.removeProperty('transform');
+		beatEl.style.visibility = 'visible';
+		setBeatFadeInTransition(beatEl, durationMs);
+		await wait(0, signal);
+		beatEl.classList.add('is-visible');
+		await waitForTransition(beatEl, durationMs, signal);
+		beatEl.style.removeProperty('visibility');
+	}
+
+	async function runBeatSequence(panel, slot, staticFallback, beats, signal) {
+		const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		const beatPanel = panel.querySelector('.beat-panel');
+
+		clearBeatSlot(slot);
+		if (beatPanel) beatPanel.classList.remove('is-reduced-motion');
+		if (staticFallback) staticFallback.hidden = true;
+
+		panel.setAttribute('aria-hidden', 'false');
+		panel.classList.add('is-open');
+
+		if (reducedMotion) {
+			if (beatPanel) beatPanel.classList.add('is-reduced-motion');
+			if (staticFallback) staticFallback.hidden = false;
+			return;
+		}
+
+		for (let i = 0; i < beats.length; i += 1) {
+			const beat = beats[i];
+			const beatEl = slot.querySelector('.beat-panel__beat');
+
+			if (i > 0) {
+				await fadeOutBeat(beatEl, signal);
+				await wait(GAP_MS, signal);
+				slot.innerHTML = beatToHtml(beat);
+			} else {
+				slot.innerHTML = beatToHtml(beat);
+			}
+
+			await fadeInBeat(slot.querySelector('.beat-panel__beat'), signal);
+			await wait(HOLD_MS, signal);
+		}
+
+		await fadeOutBeat(slot.querySelector('.beat-panel__beat'), signal);
+		clearBeatSlot(slot);
+
+		panel.classList.remove('is-open');
+		panel.setAttribute('aria-hidden', 'true');
+	}
+
+	async function abortBeatSequence(panel, slot, staticFallback, signal) {
+		const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		const beatEl = slot?.querySelector('.beat-panel__beat');
+		const beatPanel = panel.querySelector('.beat-panel');
+
+		if (beatPanel) beatPanel.classList.remove('is-reduced-motion');
+		if (staticFallback) staticFallback.hidden = true;
+
+		if (beatEl && !reducedMotion) {
+			await fadeOutBeat(beatEl, signal, QUICK_MS);
+		}
+
+		clearBeatSlot(slot);
+	}
+
+	async function revealStaggered(panel, rows, signal) {
+		const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		resetRows(rows);
+		panel.setAttribute('aria-hidden', 'false');
+		panel.classList.add('is-open');
+
+		if (reducedMotion) {
+			for (const row of rows) row.classList.add('is-visible');
+			return;
+		}
+
+		for (const row of rows) {
+			await fadeInRow(row, signal, IN_MS);
+			await wait(STAGGER_MS, signal);
+		}
+	}
+
+	async function quickRevealStaggered(panel, rows, signal) {
+		const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		resetRows(rows);
+		panel.setAttribute('aria-hidden', 'false');
+		panel.classList.add('is-open');
+
+		if (reducedMotion) {
+			for (const row of rows) row.classList.add('is-visible');
+			return;
+		}
+
+		for (const row of rows) {
+			row.style.removeProperty('filter');
+			row.style.removeProperty('transform');
+			row.style.visibility = 'visible';
+			setRowTransition(row, QUICK_MS, 0);
+		}
+		await wait(0, signal);
+		for (const row of rows) row.classList.add('is-visible');
+		if (rows.length > 0) await waitForTransition(rows[0], QUICK_MS, signal);
+		for (const row of rows) row.style.removeProperty('visibility');
+	}
+
+	async function hidePanel(panel, rows, trigger, signal) {
+		const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		panel.classList.remove('is-open');
+		trigger?.setAttribute('aria-expanded', 'false');
+
+		if (rows.length > 0 && !reducedMotion) {
+			await Promise.all(rows.map((row) => fadeOutRow(row, signal, QUICK_MS)));
+		} else if (!reducedMotion) {
+			await waitForTransition(panel, QUICK_MS, signal);
+		}
+
+		resetRows(rows);
+		panel.setAttribute('aria-hidden', 'true');
+	}
+
+	function initHeroPanels() {
+		const root = document.querySelector('.hero-anchor');
+		if (!root || root.dataset.panelsInitialized === 'true') return;
+		root.dataset.panelsInitialized = 'true';
+
+		const triggers = [...document.querySelectorAll('[data-hero-panel]')];
+		const panelMap = new Map();
+
+		for (const [panelId, config] of Object.entries(PANEL_CONFIG)) {
+			const panel = document.getElementById(panelId);
+			const trigger = triggers.find((el) => el.getAttribute('data-hero-panel') === panelId);
+			if (!panel || !trigger) continue;
+
+			panelMap.set(panelId, {
+				panel,
+				trigger,
+				rows: config.stagger ? [...panel.querySelectorAll('.hero-detail-panel__item')] : [],
+				stagger: config.stagger,
+				sequence: config.sequence ?? false,
+				beatSlot: config.sequence ? panel.querySelector(`#${config.slotId}`) : null,
+				beatStatic: config.sequence
+					? panel.querySelector(`#${config.staticId}`)
+					: null,
+				beats: config.sequence ? BEATS_BY_PANEL[panelId] : null,
+			});
+		}
+
+		if (panelMap.size === 0) return;
+
+		let controller = null;
+		let openPanelId = null;
+		let hasStaggeredLegends = false;
+
+		const setActiveTrigger = (panelId) => {
+			for (const trigger of triggers) {
+				const id = trigger.getAttribute('data-hero-panel');
+				trigger.classList.toggle('is-active', id === panelId && panelId !== null);
+			}
+			root.dispatchEvent(
+				new CustomEvent('dbm:hero-panel-change', {
+					detail: { panelId, open: panelId !== null },
+				}),
+			);
+		};
+
+		const abortRunning = () => {
+			controller?.abort();
+			controller = null;
+		};
+
+		const closePanel = async (panelId) => {
+			const entry = panelMap.get(panelId);
+			if (!entry || openPanelId !== panelId) return;
+
+			abortRunning();
+			controller = new AbortController();
+			const signal = controller.signal;
+
+			try {
+				if (entry.sequence) {
+					await abortBeatSequence(
+						entry.panel,
+						entry.beatSlot,
+						entry.beatStatic,
+						signal,
+					);
+				} else {
+					await hidePanel(entry.panel, entry.rows, entry.trigger, signal);
+				}
+
+				entry.panel.classList.remove('is-open');
+				entry.panel.setAttribute('aria-hidden', 'true');
+				entry.trigger?.setAttribute('aria-expanded', 'false');
+				openPanelId = null;
+				setActiveTrigger(null);
+			} catch (err) {
+				if (err?.name !== 'AbortError') throw err;
+			}
+		};
+
+		const openPanel = async (panelId) => {
+			const entry = panelMap.get(panelId);
+			if (!entry || openPanelId === panelId) return;
+
+			if (openPanelId) await closePanel(openPanelId);
+
+			abortRunning();
+			controller = new AbortController();
+			const signal = controller.signal;
+			openPanelId = panelId;
+			entry.trigger.setAttribute('aria-expanded', 'true');
+			setActiveTrigger(panelId);
+
+			try {
+				if (entry.sequence) {
+					await runBeatSequence(
+						entry.panel,
+						entry.beatSlot,
+						entry.beatStatic,
+						entry.beats,
+						signal,
+					);
+					entry.trigger?.setAttribute('aria-expanded', 'false');
+					openPanelId = null;
+					setActiveTrigger(null);
+				} else if (entry.stagger) {
+					const reveal =
+						hasStaggeredLegends ? quickRevealStaggered : revealStaggered;
+					await reveal(entry.panel, entry.rows, signal);
+					hasStaggeredLegends = true;
+				} else {
+					entry.panel.setAttribute('aria-hidden', 'false');
+					entry.panel.classList.add('is-open');
+				}
+			} catch (err) {
+				if (err?.name !== 'AbortError') throw err;
+			}
+		};
+
+		const togglePanel = async (panelId) => {
+			if (openPanelId === panelId) {
+				await closePanel(panelId);
+			} else {
+				await openPanel(panelId);
+			}
+		};
+
+		for (const trigger of triggers) {
+			const panelId = trigger.getAttribute('data-hero-panel');
+			if (!panelId || !panelMap.has(panelId)) continue;
+
+			trigger.addEventListener('click', () => {
+				togglePanel(panelId);
+			});
+		}
+
+		document.addEventListener('keydown', (event) => {
+			if (event.key === 'Escape' && openPanelId) {
+				event.preventDefault();
+				closePanel(openPanelId);
+			}
+		});
+	}
+
+	function bootHeroPanels() {
+		if (document.readyState === 'loading') {
+			document.addEventListener('DOMContentLoaded', initHeroPanels, { once: true });
+		} else {
+			initHeroPanels();
+		}
+	}
+
+	document.addEventListener('astro:page-load', initHeroPanels);
+	bootHeroPanels();
+</script>

@@ -5,6 +5,7 @@
  */
 import FoamLineRunner from './FoamLineRunner.astro';
 import GuinnessSurge from './GuinnessSurge.astro';
+import HeroPanels from './HeroPanels.astro';
 
 const IN_MS = 1100;
 const OUT_MS = 600;
@@ -34,15 +35,57 @@ const lineDefs = [
 	<FoamLineRunner />
 
 	<div class="hero-stage">
-		<div class="hero-lines" aria-live="polite">
-			<p class="hero-line" id="hero-line"></p>
-			<p class="hero-line hero-title" id="hero-title">Dark Beer Mile</p>
+		<div class="hero-anchor" aria-live="polite">
+			<div class="hero-sequence">
+				<p class="hero-line" id="hero-line"></p>
+				<p class="hero-line hero-title" id="hero-title">Dark Beer Mile</p>
+			</div>
+			<div class="hero-vertical-divider" aria-hidden="true"></div>
+			<HeroPanels />
 		</div>
 	</div>
 
 	<div class="hero-lockup">
 		<p class="hero-lockup__tagline">
-			One mile | One night | Poured in darkness | One head will rise
+			<button
+				type="button"
+				class="hero-lockup__item"
+				data-hero-panel="mile-panel"
+				aria-expanded="false"
+				aria-controls="mile-panel"
+			>
+				One mile
+			</button>
+			<span class="hero-lockup__sep" aria-hidden="true">|</span>
+			<button
+				type="button"
+				class="hero-lockup__item"
+				data-hero-panel="night-panel"
+				aria-expanded="false"
+				aria-controls="night-panel"
+			>
+				One night
+			</button>
+			<span class="hero-lockup__sep" aria-hidden="true">|</span>
+			<button
+				type="button"
+				class="hero-lockup__item"
+				data-hero-panel="darkness-panel"
+				aria-expanded="false"
+				aria-controls="darkness-panel"
+			>
+				Poured in darkness
+			</button>
+			<span class="hero-lockup__sep" aria-hidden="true">|</span>
+			<button
+				type="button"
+				class="hero-lockup__item"
+				data-hero-panel="legends-panel"
+				aria-expanded="false"
+				aria-controls="legends-panel"
+			>
+				One head will <span class="hero-lockup__accent">rise</span>
+			</button>
 		</p>
 	</div>
 </section>
@@ -86,17 +129,26 @@ const lineDefs = [
 	.hero-stage {
 		position: relative;
 		z-index: 1;
-		display: grid;
-		place-items: center;
 		width: 100%;
 		min-height: inherit;
 		padding: 2rem;
 	}
 
-	.hero-lines {
-		position: relative;
-		width: min(100%, 64rem);
-		height: clamp(2.2rem, 8vw, 5.5rem);
+	/** Fixed viewport anchor — title stays pinned; legends overlay below without reflow. */
+	.hero-anchor {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		width: min(calc(100% - 4rem), 64rem);
+		height: clamp(3.3rem, 12vw, 8.25rem);
+		transform: translate(-50%, -50%);
+	}
+
+	.hero-sequence {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
 	}
 
 	.hero-line {
@@ -136,6 +188,24 @@ const lineDefs = [
 		font-size: clamp(3.3rem, 12vw, 8.25rem);
 	}
 
+	.hero-vertical-divider {
+		position: absolute;
+		top: calc(100% + clamp(0.35rem, 1.2vw, 0.65rem));
+		left: 50%;
+		width: 1px;
+		height: clamp(1.5rem, 5vh, 2.75rem);
+		transform: translateX(-50%);
+		background: linear-gradient(
+			180deg,
+			transparent 0%,
+			var(--foam-border) 20%,
+			var(--foam-border) 80%,
+			transparent 100%
+		);
+		opacity: 0.55;
+		pointer-events: none;
+	}
+
 	.hero-lockup {
 		position: absolute;
 		left: 50%;
@@ -155,6 +225,11 @@ const lineDefs = [
 	}
 
 	.hero-lockup__tagline {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: center;
+		gap: 0.35rem 0.55rem;
 		margin: 0;
 		padding: 0.55rem 1.1rem;
 		font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -163,7 +238,45 @@ const lineDefs = [
 		line-height: 1.4;
 		letter-spacing: 0.12em;
 		text-transform: uppercase;
+		color: var(--amber-bright);
+	}
+
+	.hero-lockup__sep {
+		opacity: 0.45;
+		user-select: none;
+	}
+
+	.hero-lockup__item {
+		border: 0;
+		padding: 0;
+		background: transparent;
+		font: inherit;
+		letter-spacing: inherit;
+		text-transform: inherit;
+		color: rgba(212, 160, 96, 0.78);
 		white-space: nowrap;
+		cursor: pointer;
+		text-decoration: underline;
+		text-decoration-color: var(--amber-bright);
+		text-decoration-thickness: 1px;
+		text-underline-offset: 0.22em;
+		transition: color 200ms ease, text-decoration-color 200ms ease;
+	}
+
+	.hero-lockup__item.is-active {
+		color: var(--foam);
+		text-decoration-color: var(--amber-bright);
+	}
+
+	.hero-lockup__item:hover,
+	.hero-lockup__item:focus-visible {
+		color: var(--foam);
+		text-decoration-color: var(--amber-bright);
+		outline: 1px solid var(--foam-border);
+		outline-offset: 3px;
+	}
+
+	.hero-lockup__accent {
 		color: var(--amber-bright);
 	}
 

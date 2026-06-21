@@ -99,9 +99,12 @@ const { durationMs = 10000, src = '/runner-foam.webm' } = Astro.props;
 		const crossDurationSec =
 			parseInt(getComputedStyle(sprite).getPropertyValue('--runner-duration'), 10) / 1000 || 10;
 
+		// 1.33 syncs stride to cross; ×1.5 speeds leg cycle (L→R cross stays 10s).
+		const LEG_CYCLE_MULTIPLIER = 1.33 * 1.5; // ≈2.0× base duration/cross ratio
+
 		const syncVideoPlaybackRate = () => {
 			if (!Number.isFinite(video.duration) || video.duration <= 0) return;
-			video.playbackRate = (video.duration / crossDurationSec) * 1.33;
+			video.playbackRate = (video.duration / crossDurationSec) * LEG_CYCLE_MULTIPLIER;
 		};
 
 		video.addEventListener('loadedmetadata', syncVideoPlaybackRate);
