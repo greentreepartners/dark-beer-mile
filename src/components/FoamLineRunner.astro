@@ -1,29 +1,42 @@
 ---
 /**
  * FoamLineRunner — cream silhouette crosses the foam/stout line once after hero title.
- * Asset: public/runner-foam.webm (VP9+alpha, hflip + colorkey + #f2dea3 tint via ffmpeg).
- * Processed with:
- *   ffmpeg -i <source.webm> -t 5 -filter_script:v filter.txt \
- *     -c:v libvpx-vp9 -pix_fmt yuva420p -auto-alt-ref 0 -b:v 500k public/runner-foam.webm
+ * Primary: CSS sprite sheet (iOS-safe). Optional WebM enhancement on desktop when supported.
+ * Sprite: public/runner-sprite.png (24 frames × 298×168, extracted from runner-foam.webm).
  */
 interface Props {
 	durationMs?: number;
-	src?: string;
+	spriteSrc?: string;
+	videoSrc?: string;
+	frameCount?: number;
 }
 
-const { durationMs = 10000, src = '/runner-foam.webm' } = Astro.props;
+const {
+	durationMs = 10000,
+	spriteSrc = '/runner-sprite.png',
+	videoSrc = '/runner-foam.webm',
+	frameCount = 24,
+} = Astro.props;
+
+/** One full sprite cycle ≈ 5s source clip; cross is ~10s so stride loops twice. */
+const strideDurationMs = 5000;
 ---
 
 <div class="foam-line-runner" hidden aria-hidden="true">
 	<div class="foam-line-runner__track">
-		<div class="foam-line-runner__sprite" style={`--runner-duration: ${durationMs}ms`}>
+		<div
+			class="foam-line-runner__sprite"
+			style={`--runner-duration: ${durationMs}ms; --stride-duration: ${strideDurationMs}ms; --frame-count: ${frameCount}`}
+		>
+			<span class="foam-line-runner__figure" aria-hidden="true"></span>
 			<video
 				class="foam-line-runner__video"
-				src={src}
+				src={videoSrc}
 				muted
 				playsinline
 				preload="auto"
 				loop
+				hidden
 			></video>
 		</div>
 	</div>
@@ -60,11 +73,33 @@ const { durationMs = 10000, src = '/runner-foam.webm' } = Astro.props;
 		animation: foam-runner-cross var(--runner-duration, 10000ms) linear forwards;
 	}
 
-	.foam-line-runner__video {
+	.foam-line-runner__figure {
 		display: block;
+		height: 100%;
+		aspect-ratio: 298 / 168;
+		background-image: url('/runner-sprite.png');
+		background-repeat: no-repeat;
+		background-size: calc(100% * var(--frame-count, 24)) 100%;
+		background-position: 0 0;
+	}
+
+	.foam-line-runner__sprite.is-running .foam-line-runner__figure {
+		animation: foam-runner-stride var(--stride-duration, 5000ms) steps(23) infinite;
+	}
+
+	.foam-line-runner__video {
+		display: none;
 		height: 100%;
 		width: auto;
 		pointer-events: none;
+	}
+
+	.foam-line-runner.is-video-enhanced .foam-line-runner__figure {
+		display: none;
+	}
+
+	.foam-line-runner.is-video-enhanced .foam-line-runner__video {
+		display: block;
 	}
 
 	@keyframes foam-runner-cross {
@@ -77,8 +112,32 @@ const { durationMs = 10000, src = '/runner-foam.webm' } = Astro.props;
 		}
 	}
 
+	@keyframes foam-runner-stride {
+		from {
+			background-position: 0 0;
+		}
+
+		to {
+			background-position: 100% 0;
+		}
+	}
+
 	@media (prefers-reduced-motion: reduce) {
-		.foam-line-runner {
+		.foam-line-runner__sprite {
+			transform: translateX(28vw);
+			animation: none;
+		}
+
+		.foam-line-runner__sprite.is-running {
+			animation: none;
+		}
+
+		.foam-line-runner__figure {
+			animation: none;
+			background-position: 0 0;
+		}
+
+		.foam-line-runner__video {
 			display: none;
 		}
 	}
@@ -90,51 +149,87 @@ const { durationMs = 10000, src = '/runner-foam.webm' } = Astro.props;
 		const runner = document.querySelector('.foam-line-runner');
 		if (!hero || !runner) return;
 
-		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
+		const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		const sprite = runner.querySelector('.foam-line-runner__sprite');
+		const figure = runner.querySelector('.foam-line-runner__figure');
 		const video = runner.querySelector('.foam-line-runner__video');
-		if (!(sprite instanceof HTMLElement) || !(video instanceof HTMLVideoElement)) return;
+		if (!(sprite instanceof HTMLElement)) return;
 
 		const crossDurationSec =
 			parseInt(getComputedStyle(sprite).getPropertyValue('--runner-duration'), 10) / 1000 || 10;
 
-		// 1.33 syncs stride to cross; ×1.5 speeds leg cycle (L→R cross stays 10s).
-		const LEG_CYCLE_MULTIPLIER = 1.33 * 1.5; // ≈2.0× base duration/cross ratio
+		const LEG_CYCLE_MULTIPLIER = 1.33 * 1.5;
 
-		const syncVideoPlaybackRate = () => {
-			if (!Number.isFinite(video.duration) || video.duration <= 0) return;
-			video.playbackRate = (video.duration / crossDurationSec) * LEG_CYCLE_MULTIPLIER;
+		const tryVideoEnhancement = () => {
+			if (reducedMotion || !(video instanceof HTMLVideoElement)) return;
+			if (!window.matchMedia('(min-width: 768px)').matches) return;
+
+			const syncVideoPlaybackRate = () => {
+				if (!Number.isFinite(video.duration) || video.duration <= 0) return;
+				video.playbackRate = (video.duration / crossDurationSec) * LEG_CYCLE_MULTIPLIER;
+			};
+
+			video.addEventListener('loadedmetadata', syncVideoPlaybackRate, { once: true });
+			video.hidden = false;
+			video.play()
+				.then(() => {
+					syncVideoPlaybackRate();
+					runner.classList.add('is-video-enhanced');
+				})
+				.catch(() => {
+					video.hidden = true;
+					runner.classList.remove('is-video-enhanced');
+				});
 		};
 
-		video.addEventListener('loadedmetadata', syncVideoPlaybackRate);
-
 		const startRunner = () => {
+			if (reducedMotion) {
+				runner.hidden = false;
+				return;
+			}
+
 			if (sprite.classList.contains('is-running')) return;
 
 			runner.hidden = false;
 			sprite.classList.remove('is-running');
 			void sprite.offsetWidth;
-			syncVideoPlaybackRate();
-			video.currentTime = 0;
-			video.play().catch(() => {});
+
+			if (video instanceof HTMLVideoElement && runner.classList.contains('is-video-enhanced')) {
+				video.currentTime = 0;
+				video.play().catch(() => {});
+			}
+
 			sprite.classList.add('is-running');
 		};
 
 		const onAnimationEnd = (event: AnimationEvent) => {
-			if (event.target !== sprite) return;
+			if (reducedMotion || event.target !== sprite) return;
 			sprite.classList.remove('is-running');
-			video.pause();
+			if (video instanceof HTMLVideoElement) video.pause();
 			runner.hidden = true;
 		};
 
 		sprite.removeEventListener('animationend', onAnimationEnd);
 		sprite.addEventListener('animationend', onAnimationEnd);
 
+		tryVideoEnhancement();
+
 		hero.removeEventListener('dbm:hero-title-visible', startRunner);
 		hero.addEventListener('dbm:hero-title-visible', startRunner, { once: true });
+
+		if (hero.classList.contains('is-complete')) {
+			startRunner();
+		}
 	}
 
-	bindFoamLineRunner();
+	function bootFoamLineRunner() {
+		if (document.readyState === 'loading') {
+			document.addEventListener('DOMContentLoaded', bindFoamLineRunner, { once: true });
+		} else {
+			bindFoamLineRunner();
+		}
+	}
+
+	bootFoamLineRunner();
 	document.addEventListener('astro:page-load', bindFoamLineRunner);
 </script>

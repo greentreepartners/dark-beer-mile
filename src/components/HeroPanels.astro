@@ -2,8 +2,8 @@
 import HeroDetailPanel from './HeroDetailPanel.astro';
 import { legends } from '../data/legends';
 
-const IN_MS = 1100;
-const OUT_MS = 600;
+const IN_MS = 1700;
+const OUT_MS = 700;
 const GAP_MS = 300;
 const HOLD_MS = 8500;
 const QUICK_MS = 350;
@@ -273,6 +273,15 @@ const darknessBeats = [
 
 	.beat-panel__slot {
 		min-height: 0;
+		overflow: hidden;
+	}
+
+	.beat-panel:not(.is-reduced-motion) .beat-panel__static {
+		display: none !important;
+	}
+
+	.beat-panel__static[hidden] {
+		display: none !important;
 	}
 
 	/* :global — beat slot HTML is injected via innerHTML without Astro scope attrs */
@@ -351,6 +360,8 @@ const darknessBeats = [
 		display: none;
 		flex-direction: column;
 		gap: clamp(0.85rem, 2.5vw, 1.15rem);
+		width: 100%;
+		overflow: visible;
 	}
 
 	.beat-panel__static-beat {
@@ -361,8 +372,20 @@ const darknessBeats = [
 		display: none;
 	}
 
-	.beat-panel.is-reduced-motion :global(.beat-panel__static) {
+	.beat-panel.is-reduced-motion .beat-panel__static {
 		display: flex;
+	}
+
+	@media (max-width: 768px) {
+		.beat-panel {
+			max-width: 100%;
+		}
+
+		.beat-panel.is-reduced-motion .beat-panel__static {
+			max-height: var(--hero-panel-max-height, 40dvh);
+			overflow-y: auto;
+			-webkit-overflow-scrolling: touch;
+		}
 	}
 
 	.legends {
@@ -491,6 +514,17 @@ const darknessBeats = [
 		'night-panel': nightBeats,
 		'darkness-panel': darknessBeats,
 	};
+
+	/** Pause between auto-tour panels after a beat sequence closes. */
+	const AUTO_TOUR_GAP_MS = 1750;
+	/** Delay before the first auto-tour panel (Mile) opens after hero title is visible. */
+	const AUTO_TOUR_START_DELAY_MS = 6000;
+	const AUTO_TOUR_PANELS = [
+		'mile-panel',
+		'night-panel',
+		'darkness-panel',
+		'legends-panel',
+	];
 
 	const PANEL_CONFIG = {
 		'mile-panel': {
@@ -672,14 +706,20 @@ const darknessBeats = [
 
 		clearBeatSlot(slot);
 		if (beatPanel) beatPanel.classList.remove('is-reduced-motion');
-		if (staticFallback) staticFallback.hidden = true;
+		if (staticFallback) {
+			staticFallback.hidden = true;
+			staticFallback.setAttribute('hidden', '');
+		}
 
 		panel.setAttribute('aria-hidden', 'false');
 		panel.classList.add('is-open');
 
 		if (reducedMotion) {
 			if (beatPanel) beatPanel.classList.add('is-reduced-motion');
-			if (staticFallback) staticFallback.hidden = false;
+			if (staticFallback) {
+				staticFallback.hidden = false;
+				staticFallback.removeAttribute('hidden');
+			}
 			return;
 		}
 
@@ -712,7 +752,10 @@ const darknessBeats = [
 		const beatPanel = panel.querySelector('.beat-panel');
 
 		if (beatPanel) beatPanel.classList.remove('is-reduced-motion');
-		if (staticFallback) staticFallback.hidden = true;
+		if (staticFallback) {
+			staticFallback.hidden = true;
+			staticFallback.setAttribute('hidden', '');
+		}
 
 		if (beatEl && !reducedMotion) {
 			await fadeOutBeat(beatEl, signal, QUICK_MS);
@@ -808,6 +851,10 @@ const darknessBeats = [
 		let controller = null;
 		let openPanelId = null;
 		let hasStaggeredLegends = false;
+		let autoTourRunning = false;
+		let autoTourAborted = false;
+		let autoTourController = null;
+		let hasAutoTourRun = false;
 
 		const setActiveTrigger = (panelId) => {
 			for (const trigger of triggers) {
@@ -903,18 +950,63 @@ const darknessBeats = [
 			}
 		};
 
+		const abortAutoTour = () => {
+			if (!autoTourRunning) return;
+			autoTourAborted = true;
+			autoTourController?.abort();
+		};
+
+		const runAutoTour = async () => {
+			if (hasAutoTourRun) return;
+			if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+			hasAutoTourRun = true;
+			autoTourRunning = true;
+			autoTourAborted = false;
+			autoTourController = new AbortController();
+			const signal = autoTourController.signal;
+
+			try {
+				await wait(AUTO_TOUR_START_DELAY_MS, signal);
+				if (autoTourAborted || signal.aborted) return;
+
+				for (let i = 0; i < AUTO_TOUR_PANELS.length; i += 1) {
+					if (autoTourAborted || signal.aborted) break;
+
+					const panelId = AUTO_TOUR_PANELS[i];
+					await openPanel(panelId);
+
+					if (autoTourAborted || signal.aborted) break;
+
+					if (i < AUTO_TOUR_PANELS.length - 1) {
+						await wait(AUTO_TOUR_GAP_MS, signal);
+					}
+				}
+			} catch (err) {
+				if (err?.name !== 'AbortError') throw err;
+			} finally {
+				autoTourRunning = false;
+				autoTourController = null;
+			}
+		};
+
 		for (const trigger of triggers) {
 			const panelId = trigger.getAttribute('data-hero-panel');
 			if (!panelId || !panelMap.has(panelId)) continue;
 
 			trigger.addEventListener('click', () => {
+				if (autoTourRunning) abortAutoTour();
 				togglePanel(panelId);
 			});
 		}
 
+		const hero = document.querySelector('.cinematic-hero');
+		hero?.addEventListener('dbm:hero-title-visible', () => runAutoTour(), { once: true });
+
 		document.addEventListener('keydown', (event) => {
 			if (event.key === 'Escape' && openPanelId) {
 				event.preventDefault();
+				if (autoTourRunning) abortAutoTour();
 				closePanel(openPanelId);
 			}
 		});

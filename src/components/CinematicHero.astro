@@ -7,21 +7,27 @@ import FoamLineRunner from './FoamLineRunner.astro';
 import GuinnessSurge from './GuinnessSurge.astro';
 import HeroPanels from './HeroPanels.astro';
 
-const IN_MS = 1100;
-const OUT_MS = 600;
+const IN_MS = 1700;
+const OUT_MS = 700;
 /** ms with no hero line visible between line N out and line N+1 in */
 const LINE_GAP_MS = 300;
 const INITIAL_DELAY_MS = 400;
 
 const lineDefs = [
-	{ parts: [{ text: 'One mile' }], hold: 650 },
-	{ parts: [{ text: 'One night' }], hold: 650 },
+	{ lines: [[{ text: 'One mile' }]], hold: 650 },
+	{ lines: [[{ text: 'One night' }]], hold: 650 },
 	{
-		parts: [{ text: 'Poured in ' }, { text: 'darkness', accent: true }],
+		lines: [
+			[{ text: 'Poured' }],
+			[{ text: 'in ' }, { text: 'darkness' }],
+		],
 		hold: 800,
 	},
 	{
-		parts: [{ text: 'One head will ' }, { text: 'rise', accent: true }],
+		lines: [
+			[{ text: 'One head' }],
+			[{ text: 'will ' }, { text: 'rise' }],
+		],
 		hold: 1100,
 	},
 ] as const;
@@ -51,40 +57,50 @@ const lineDefs = [
 				type="button"
 				class="hero-lockup__item"
 				data-hero-panel="mile-panel"
+				aria-label="One mile"
 				aria-expanded="false"
 				aria-controls="mile-panel"
 			>
-				One mile
+				<span class="hero-lockup__label hero-lockup__label--long">One mile</span>
+				<span class="hero-lockup__label hero-lockup__label--short">Mile</span>
 			</button>
 			<span class="hero-lockup__sep" aria-hidden="true">|</span>
 			<button
 				type="button"
 				class="hero-lockup__item"
 				data-hero-panel="night-panel"
+				aria-label="One night"
 				aria-expanded="false"
 				aria-controls="night-panel"
 			>
-				One night
+				<span class="hero-lockup__label hero-lockup__label--long">One night</span>
+				<span class="hero-lockup__label hero-lockup__label--short">Night</span>
 			</button>
 			<span class="hero-lockup__sep" aria-hidden="true">|</span>
 			<button
 				type="button"
 				class="hero-lockup__item"
 				data-hero-panel="darkness-panel"
+				aria-label="Poured in darkness"
 				aria-expanded="false"
 				aria-controls="darkness-panel"
 			>
-				Poured in darkness
+				<span class="hero-lockup__label hero-lockup__label--long">Poured in darkness</span>
+				<span class="hero-lockup__label hero-lockup__label--short">Darkness</span>
 			</button>
 			<span class="hero-lockup__sep" aria-hidden="true">|</span>
 			<button
 				type="button"
 				class="hero-lockup__item"
 				data-hero-panel="legends-panel"
+				aria-label="One head will rise"
 				aria-expanded="false"
 				aria-controls="legends-panel"
 			>
-				One head will <span class="hero-lockup__accent">rise</span>
+				<span class="hero-lockup__label hero-lockup__label--long"
+					>One head will <span class="hero-lockup__accent">rise</span></span
+				>
+				<span class="hero-lockup__label hero-lockup__label--short">Legends</span>
 			</button>
 		</p>
 	</div>
@@ -97,14 +113,23 @@ const lineDefs = [
 		--rust-dark: #3a1208;
 		--amber: #8b3a10;
 		--foam: #f2dea3;
-		/** Foam/stout boundary — matches GuinnessSurge shader foamFloor (~29% from top). */
+		/** Foam/stout boundary — matches GuinnessSurge foam band (~29% from top). */
 		--foam-line-y: 29%;
 		--amber-bright: #d4a060;
 		--foam-subtle: rgba(242, 222, 163, 0.8);
 		--foam-border: rgba(242, 222, 163, 0.15);
-		--hero-in-ms: 1100ms;
-		--hero-out-ms: 600ms;
+		--hero-in-ms: 1700ms;
+		--hero-out-ms: 700ms;
 		--lockup-duration: 1600ms;
+		--hero-footer-height: 0px;
+		/** Two-line title/tagline block — reserve height for wrapped Dark Beer Mile. */
+		--hero-title-height: clamp(6.6rem, 24vw, 16.5rem);
+		/** Nudge anchor up from dead-center — middle ground between 50% and full title-height shift. */
+		--hero-anchor-offset: calc(var(--hero-title-height) * 0.35);
+		--hero-panel-max-height: min(
+			50vh,
+			calc(100dvh - 50% + var(--hero-title-height) - clamp(6rem, 18vw, 10rem))
+		);
 
 		position: relative;
 		display: flex;
@@ -112,9 +137,15 @@ const lineDefs = [
 		justify-content: center;
 		width: 100%;
 		min-height: 100vh;
-		overflow: hidden;
-		background: linear-gradient(180deg, var(--stout-core) 0%, var(--stout-body) 100%);
+		min-height: 100dvh;
+		overflow-x: clip;
+		overflow-y: hidden;
+		background: var(--stout-core);
 		color: var(--foam);
+	}
+
+	.cinematic-hero:has(.hero-detail-panel.is-open) {
+		overflow: visible;
 	}
 
 	.hero-surface {
@@ -122,7 +153,7 @@ const lineDefs = [
 		inset: 0;
 		z-index: 0;
 		pointer-events: none;
-		opacity: 0.6;
+		opacity: 1;
 		transform: none;
 	}
 
@@ -137,18 +168,21 @@ const lineDefs = [
 	/** Fixed viewport anchor — title stays pinned; legends overlay below without reflow. */
 	.hero-anchor {
 		position: absolute;
-		top: 50%;
+		top: calc(50% - var(--hero-anchor-offset));
 		left: 50%;
+		z-index: 2;
 		width: min(calc(100% - 4rem), 64rem);
-		height: clamp(3.3rem, 12vw, 8.25rem);
+		height: auto;
+		min-height: var(--hero-title-height);
 		transform: translate(-50%, -50%);
+		overflow: visible;
 	}
 
 	.hero-sequence {
-		position: absolute;
-		inset: 0;
+		position: relative;
+		z-index: 2;
 		width: 100%;
-		height: 100%;
+		min-height: var(--hero-title-height);
 	}
 
 	.hero-line {
@@ -159,7 +193,7 @@ const lineDefs = [
 		justify-content: center;
 		margin: 0;
 		font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-		font-size: clamp(2.2rem, 8vw, 5.5rem);
+		font-size: clamp(3.3rem, 12vw, 8.25rem);
 		font-weight: 900;
 		line-height: 1.05;
 		letter-spacing: 0.02em;
@@ -167,25 +201,75 @@ const lineDefs = [
 		text-align: center;
 		color: var(--foam);
 		white-space: nowrap;
+	}
+
+	/** Fade/blur/scale on content-sized wrapper — not the full-height slot. */
+	.hero-line :global(.hero-line__fx) {
+		display: block;
+		transform-origin: center center;
 		opacity: 0;
 		visibility: hidden;
 		filter: blur(6px);
 		transform: scale(0.92);
 	}
 
-	.hero-line.is-visible {
+	.hero-line :global(.hero-line__fx.is-visible) {
 		opacity: 1;
 		visibility: visible;
 		filter: blur(0);
 		transform: scale(1);
 	}
 
-	.hero-line__accent {
+	.hero-title {
+		font-size: clamp(3.3rem, 12vw, 8.25rem);
+		max-width: 100%;
+		overflow-wrap: break-word;
+		text-wrap: balance;
+		white-space: normal;
+		transform-origin: center center;
+		opacity: 0;
+		visibility: hidden;
+		filter: blur(6px);
+		transform: scale(0.92);
+	}
+
+	.hero-title.is-visible {
+		opacity: 1;
+		visibility: visible;
+		filter: blur(0);
+		transform: scale(1);
+	}
+	.hero-line :global(.hero-line__accent) {
 		color: var(--amber-bright);
 	}
 
-	.hero-title {
-		font-size: clamp(3.3rem, 12vw, 8.25rem);
+	.hero-line :global(.hero-line__text) {
+		display: block;
+		text-align: center;
+		line-height: 1.05;
+		white-space: normal;
+	}
+
+	.hero-line :global(.hero-line__text--stacked) {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0;
+		min-height: calc(2.1em + 0.08em);
+		line-height: 1.05;
+		white-space: normal;
+	}
+
+	.hero-line :global(.hero-line__row) {
+		display: block;
+		width: 100%;
+		text-align: center;
+		line-height: 1.05;
+	}
+
+	.hero-line :global(.hero-line__row + .hero-line__row) {
+		margin-top: 0.08em;
 	}
 
 	.hero-vertical-divider {
@@ -217,7 +301,12 @@ const lineDefs = [
 		width: min(92vw, 42rem);
 		transform: translateX(-50%);
 		opacity: 0;
+		pointer-events: none;
 		text-align: center;
+	}
+
+	.cinematic-hero.is-complete .hero-lockup {
+		pointer-events: auto;
 	}
 
 	.cinematic-hero.is-complete .hero-lockup {
@@ -280,6 +369,10 @@ const lineDefs = [
 		color: var(--amber-bright);
 	}
 
+	.hero-lockup__label--short {
+		display: none;
+	}
+
 	@keyframes hero-lockup-in {
 		from {
 			opacity: 0;
@@ -290,29 +383,134 @@ const lineDefs = [
 		}
 	}
 
+	@media (max-width: 768px) {
+		.hero-lockup__label--long {
+			display: none;
+		}
+
+		.hero-lockup__label--short {
+			display: inline;
+		}
+
+		.cinematic-hero {
+			--hero-title-height: clamp(8.5rem, 30vw, 12rem);
+			--hero-footer-height: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+			--hero-panel-max-height: calc(
+				100dvh - 50% + var(--hero-title-height) - var(--hero-footer-height) -
+					clamp(3.5rem, 14vw, 5.5rem)
+			);
+			padding-bottom: var(--hero-footer-height);
+		}
+
+		.hero-stage {
+			padding: 1.25rem 1rem;
+		}
+
+		.hero-anchor {
+			width: min(calc(100% - 1.5rem), 64rem);
+		}
+
+		.hero-line,
+		.hero-title {
+			font-size: clamp(2.75rem, 11vw, 5.5rem);
+			white-space: normal;
+			hyphens: none;
+			padding-inline: 0.15rem;
+		}
+
+		.hero-lockup {
+			position: fixed;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			z-index: 10;
+			width: 100%;
+			max-width: none;
+			transform: none;
+			padding-bottom: env(safe-area-inset-bottom, 0px);
+			background: linear-gradient(
+				180deg,
+				transparent 0%,
+				rgba(10, 4, 2, 0.82) 28%,
+				rgba(10, 4, 2, 0.96) 100%
+			);
+		}
+
+		.hero-lockup__tagline {
+			display: grid;
+			grid-template-columns: repeat(4, 1fr);
+			gap: 0;
+			width: 100%;
+			max-width: 100%;
+			padding: 0.35rem 0.5rem 0.45rem;
+			font-size: clamp(0.62rem, 2.8vw, 0.78rem);
+		}
+
+		.hero-lockup__sep {
+			display: none;
+		}
+
+		.hero-lockup__item {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			min-height: 44px;
+			padding-inline: 0.15rem;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			text-align: center;
+		}
+
+		.hero-lockup__item.is-active {
+			color: var(--foam);
+			text-decoration-color: var(--foam);
+			text-decoration-thickness: 2px;
+		}
+	}
+
+	@media (max-width: 430px) {
+		.cinematic-hero {
+			/** Two-line title wrap — reserve height so panels stay below. */
+			--hero-title-height: clamp(5.75rem, 26vw, 7.5rem);
+		}
+
+		.hero-line,
+		.hero-title {
+			font-size: clamp(2.75rem, 13vw, 4rem);
+			letter-spacing: 0.015em;
+		}
+	}
+
+	@media (max-width: 375px) {
+		.cinematic-hero {
+			--hero-title-height: clamp(6.25rem, 28vw, 8rem);
+		}
+
+		.hero-line,
+		.hero-title {
+			font-size: clamp(2.5rem, 12vw, 3.65rem);
+			line-height: 1.1;
+		}
+	}
+
 	@media (prefers-reduced-motion: reduce) {
 		.hero-surface {
-			opacity: 0.6;
+			opacity: 1;
 			transform: none;
 		}
 
-		.hero-line {
-			opacity: 0;
-			visibility: hidden;
+		.hero-line :global(.hero-line__fx),
+		.hero-title {
+			transition: none;
 			filter: none;
 			transform: none;
 		}
 
-		.cinematic-hero.is-reduced-motion .hero-line {
-			opacity: 0;
-			visibility: hidden;
-		}
-
-		.cinematic-hero.is-reduced-motion .hero-title {
+		.cinematic-hero.is-reduced-motion .hero-line :global(.hero-line__fx.is-visible),
+		.cinematic-hero.is-reduced-motion .hero-title.is-visible {
 			opacity: 1;
 			visibility: visible;
-			filter: none;
-			transform: none;
 		}
 
 		.hero-lockup {
@@ -334,16 +532,26 @@ const lineDefs = [
 		INITIAL_DELAY_MS,
 	}}
 >
-	function partsToHtml(parts) {
-		const inner = parts
-			.map((part) =>
-				part.accent
-					? `<span class="hero-line__accent">${part.text}</span>`
-					: part.text,
-			)
+	function partToHtml(part) {
+		return part.accent
+			? `<span class="hero-line__accent">${part.text}</span>`
+			: part.text;
+	}
+
+	function partsToHtml(line) {
+		const rows = line.lines
+			.map((parts) => {
+				const inner = parts.map(partToHtml).join('');
+				return `<span class="hero-line__row">${inner}</span>`;
+			})
 			.join('');
-		// Single wrapper so flex layout does not strip trailing spaces before accents.
-		return `<span class="hero-line__text">${inner}</span>`;
+		const stackedClass =
+			line.lines.length > 1 ? ' hero-line__text--stacked' : '';
+		return `<span class="hero-line__fx"><span class="hero-line__text${stackedClass}">${rows}</span></span>`;
+	}
+
+	function getFadeTarget(el) {
+		return el.querySelector('.hero-line__fx') ?? el;
 	}
 
 	function wait(ms, signal) {
@@ -410,23 +618,45 @@ const lineDefs = [
 	}
 
 	async function fadeOut(el, signal) {
-		setFadeOutTransition(el);
-		el.classList.remove('is-visible');
-		await waitForTransition(el, OUT_MS, signal);
-		el.style.removeProperty('visibility');
-		el.style.removeProperty('filter');
-		el.style.removeProperty('transform');
+		const target = getFadeTarget(el);
+		setFadeOutTransition(target);
+		target.classList.remove('is-visible');
+		await waitForTransition(target, OUT_MS, signal);
+		target.style.removeProperty('visibility');
+		target.style.removeProperty('filter');
+		target.style.removeProperty('transform');
 	}
 
 	async function fadeIn(el, signal) {
-		el.style.removeProperty('filter');
-		el.style.removeProperty('transform');
-		el.style.visibility = 'visible';
-		setFadeInTransition(el);
+		const target = getFadeTarget(el);
+		target.style.removeProperty('filter');
+		target.style.removeProperty('transform');
+		target.style.visibility = 'visible';
+		setFadeInTransition(target);
 		await wait(0, signal);
-		el.classList.add('is-visible');
-		await waitForTransition(el, IN_MS, signal);
-		el.style.removeProperty('visibility');
+		target.classList.add('is-visible');
+		await waitForTransition(target, IN_MS, signal);
+		target.style.removeProperty('visibility');
+	}
+
+	async function runReducedMotionSequence(hero, el, titleEl, signal) {
+		hero.classList.add('is-reduced-motion');
+
+		for (let i = 0; i < lineDefs.length; i += 1) {
+			const line = lineDefs[i];
+			el.innerHTML = partsToHtml(line);
+			const target = getFadeTarget(el);
+			target.style.visibility = 'visible';
+			target.classList.add('is-visible');
+			await wait(line.hold, signal);
+		}
+
+		titleEl.style.visibility = 'visible';
+		titleEl.classList.add('is-visible');
+		el.innerHTML = '';
+
+		hero.classList.add('is-complete');
+		hero.dispatchEvent(new CustomEvent('dbm:hero-title-visible'));
 	}
 
 	async function runHeroSequence(signal) {
@@ -435,15 +665,16 @@ const lineDefs = [
 		const titleEl = document.getElementById('hero-title');
 		if (!hero || !el || !titleEl) return;
 
+		hero.classList.remove('is-reduced-motion', 'is-complete');
 		titleEl.classList.remove('is-visible');
 		titleEl.style.removeProperty('visibility');
 		titleEl.style.removeProperty('transition');
+		el.innerHTML = '';
+		el.style.removeProperty('visibility');
+		el.style.removeProperty('transition');
 
 		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-			el.innerHTML = '';
-			titleEl.classList.add('is-visible');
-			titleEl.style.visibility = 'visible';
-			hero.classList.add('is-reduced-motion', 'is-complete');
+			await runReducedMotionSequence(hero, el, titleEl, signal);
 			return;
 		}
 
@@ -455,9 +686,9 @@ const lineDefs = [
 			if (i > 0) {
 				await fadeOut(el, signal);
 				await wait(LINE_GAP_MS, signal);
-				el.innerHTML = partsToHtml(line.parts);
+				el.innerHTML = partsToHtml(line);
 			} else {
-				el.innerHTML = partsToHtml(line.parts);
+				el.innerHTML = partsToHtml(line);
 			}
 
 			await fadeIn(el, signal);
@@ -480,6 +711,15 @@ const lineDefs = [
 		});
 	}
 
-	startHeroSequence();
-	document.addEventListener('astro:page-load', startHeroSequence);
+	function bootHeroSequence() {
+		if (document.readyState === 'loading') {
+			document.addEventListener('DOMContentLoaded', startHeroSequence, { once: true });
+			return;
+		}
+
+		startHeroSequence();
+	}
+
+	bootHeroSequence();
+	document.addEventListener('astro:page-load', bootHeroSequence);
 </script>
