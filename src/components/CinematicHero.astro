@@ -495,30 +495,9 @@ const lineDefs = [
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.hero-surface {
-			opacity: 1;
-			transform: none;
-		}
-
 		.hero-line :global(.hero-line__fx),
 		.hero-title {
-			transition: none;
 			filter: none;
-			transform: none;
-		}
-
-		.cinematic-hero.is-reduced-motion .hero-line :global(.hero-line__fx.is-visible),
-		.cinematic-hero.is-reduced-motion .hero-title.is-visible {
-			opacity: 1;
-			visibility: visible;
-		}
-
-		.hero-lockup {
-			opacity: 1;
-		}
-
-		.cinematic-hero.is-complete .hero-lockup {
-			animation: none;
 		}
 	}
 </style>
@@ -639,44 +618,19 @@ const lineDefs = [
 		target.style.removeProperty('visibility');
 	}
 
-	async function runReducedMotionSequence(hero, el, titleEl, signal) {
-		hero.classList.add('is-reduced-motion');
-
-		for (let i = 0; i < lineDefs.length; i += 1) {
-			const line = lineDefs[i];
-			el.innerHTML = partsToHtml(line);
-			const target = getFadeTarget(el);
-			target.style.visibility = 'visible';
-			target.classList.add('is-visible');
-			await wait(line.hold, signal);
-		}
-
-		titleEl.style.visibility = 'visible';
-		titleEl.classList.add('is-visible');
-		el.innerHTML = '';
-
-		hero.classList.add('is-complete');
-		hero.dispatchEvent(new CustomEvent('dbm:hero-title-visible'));
-	}
-
 	async function runHeroSequence(signal) {
 		const hero = document.querySelector('.cinematic-hero');
 		const el = document.getElementById('hero-line');
 		const titleEl = document.getElementById('hero-title');
 		if (!hero || !el || !titleEl) return;
 
-		hero.classList.remove('is-reduced-motion', 'is-complete');
+		hero.classList.remove('is-complete');
 		titleEl.classList.remove('is-visible');
 		titleEl.style.removeProperty('visibility');
 		titleEl.style.removeProperty('transition');
 		el.innerHTML = '';
 		el.style.removeProperty('visibility');
 		el.style.removeProperty('transition');
-
-		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-			await runReducedMotionSequence(hero, el, titleEl, signal);
-			return;
-		}
 
 		await wait(INITIAL_DELAY_MS, signal);
 

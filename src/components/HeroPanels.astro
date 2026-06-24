@@ -276,7 +276,8 @@ const darknessBeats = [
 		overflow: hidden;
 	}
 
-	.beat-panel:not(.is-reduced-motion) .beat-panel__static {
+	.beat-panel:not(.is-reduced-motion) .beat-panel__static,
+	.beat-panel__static {
 		display: none !important;
 	}
 
@@ -481,17 +482,11 @@ const darknessBeats = [
 
 	@media (prefers-reduced-motion: reduce) {
 		.hero-detail-panel__item {
-			opacity: 1;
-			visibility: visible;
 			filter: none;
-			transform: none;
 		}
 
 		:global(.beat-panel__beat) {
-			opacity: 1;
-			visibility: visible;
 			filter: none;
-			transform: none;
 		}
 	}
 </style>
@@ -701,7 +696,6 @@ const darknessBeats = [
 	}
 
 	async function runBeatSequence(panel, slot, staticFallback, beats, signal) {
-		const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		const beatPanel = panel.querySelector('.beat-panel');
 
 		clearBeatSlot(slot);
@@ -713,15 +707,6 @@ const darknessBeats = [
 
 		panel.setAttribute('aria-hidden', 'false');
 		panel.classList.add('is-open');
-
-		if (reducedMotion) {
-			if (beatPanel) beatPanel.classList.add('is-reduced-motion');
-			if (staticFallback) {
-				staticFallback.hidden = false;
-				staticFallback.removeAttribute('hidden');
-			}
-			return;
-		}
 
 		for (let i = 0; i < beats.length; i += 1) {
 			const beat = beats[i];
@@ -747,7 +732,6 @@ const darknessBeats = [
 	}
 
 	async function abortBeatSequence(panel, slot, staticFallback, signal) {
-		const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		const beatEl = slot?.querySelector('.beat-panel__beat');
 		const beatPanel = panel.querySelector('.beat-panel');
 
@@ -757,7 +741,7 @@ const darknessBeats = [
 			staticFallback.setAttribute('hidden', '');
 		}
 
-		if (beatEl && !reducedMotion) {
+		if (beatEl) {
 			await fadeOutBeat(beatEl, signal, QUICK_MS);
 		}
 
@@ -765,15 +749,9 @@ const darknessBeats = [
 	}
 
 	async function revealStaggered(panel, rows, signal) {
-		const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		resetRows(rows);
 		panel.setAttribute('aria-hidden', 'false');
 		panel.classList.add('is-open');
-
-		if (reducedMotion) {
-			for (const row of rows) row.classList.add('is-visible');
-			return;
-		}
 
 		for (const row of rows) {
 			await fadeInRow(row, signal, IN_MS);
@@ -782,15 +760,9 @@ const darknessBeats = [
 	}
 
 	async function quickRevealStaggered(panel, rows, signal) {
-		const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		resetRows(rows);
 		panel.setAttribute('aria-hidden', 'false');
 		panel.classList.add('is-open');
-
-		if (reducedMotion) {
-			for (const row of rows) row.classList.add('is-visible');
-			return;
-		}
 
 		for (const row of rows) {
 			row.style.removeProperty('filter');
@@ -805,13 +777,12 @@ const darknessBeats = [
 	}
 
 	async function hidePanel(panel, rows, trigger, signal) {
-		const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		panel.classList.remove('is-open');
 		trigger?.setAttribute('aria-expanded', 'false');
 
-		if (rows.length > 0 && !reducedMotion) {
+		if (rows.length > 0) {
 			await Promise.all(rows.map((row) => fadeOutRow(row, signal, QUICK_MS)));
-		} else if (!reducedMotion) {
+		} else {
 			await waitForTransition(panel, QUICK_MS, signal);
 		}
 
@@ -958,7 +929,6 @@ const darknessBeats = [
 
 		const runAutoTour = async () => {
 			if (hasAutoTourRun) return;
-			if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
 			hasAutoTourRun = true;
 			autoTourRunning = true;
@@ -1001,7 +971,11 @@ const darknessBeats = [
 		}
 
 		const hero = document.querySelector('.cinematic-hero');
-		hero?.addEventListener('dbm:hero-title-visible', () => runAutoTour(), { once: true });
+		const onHeroTitleVisible = () => runAutoTour();
+		hero?.addEventListener('dbm:hero-title-visible', onHeroTitleVisible, { once: true });
+		if (hero?.classList.contains('is-complete')) {
+			onHeroTitleVisible();
+		}
 
 		document.addEventListener('keydown', (event) => {
 			if (event.key === 'Escape' && openPanelId) {
